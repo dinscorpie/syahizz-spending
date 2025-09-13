@@ -13,7 +13,6 @@ import {
   Pencil, 
   Trash2,
   Calendar,
-  DollarSign,
   ChevronLeft,
   ChevronRight as ChevronRightIcon
 } from "lucide-react";
@@ -312,7 +311,6 @@ const TransactionHistory = () => {
                         <div className="flex items-center gap-3">
                           <h3 className="font-medium">{receipt.vendor_name}</h3>
                            <Badge variant="secondary" className="text-xs">
-                            <DollarSign className="h-3 w-3 mr-1" />
                             RM{receipt.total_amount.toFixed(2)}
                           </Badge>
                         </div>
