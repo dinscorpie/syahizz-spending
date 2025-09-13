@@ -59,9 +59,17 @@ const Dashboard = () => {
     { value: 'custom', label: 'Custom Range' },
   ];
 
-  const COLORS = [
-    '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8',
-    '#82CA9D', '#FFC658', '#FF7C7C', '#8DD1E1', '#D084D0'
+  const CHART_COLORS = [
+    'hsl(217 91% 60%)', // Primary blue
+    'hsl(142 76% 36%)', // Green
+    'hsl(48 96% 53%)',  // Yellow
+    'hsl(25 95% 53%)',  // Orange
+    'hsl(262 83% 58%)', // Purple
+    'hsl(173 58% 39%)', // Teal
+    'hsl(43 74% 66%)',  // Light orange
+    'hsl(0 84% 60%)',   // Red
+    'hsl(200 71% 73%)', // Light blue
+    'hsl(310 56% 67%)', // Pink
   ];
 
   useEffect(() => {
@@ -207,10 +215,28 @@ const Dashboard = () => {
   const renderCustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-medium">{`${label}`}</p>
-          <p className="text-primary">
+        <div className="bg-card border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm">
+          <p className="font-medium text-card-foreground">{`${label}`}</p>
+          <p className="text-primary font-semibold">
             {`Amount: ${formatCurrency(payload[0].value)}`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderPieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      return (
+        <div className="bg-card border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm">
+          <p className="font-medium text-card-foreground">{data.payload.category}</p>
+          <p className="text-primary font-semibold">
+            {`Amount: ${formatCurrency(data.value)}`}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {`${data.payload.count} items`}
           </p>
         </div>
       );
@@ -291,13 +317,15 @@ const Dashboard = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-primary/10 rounded-full">
+              <DollarSign className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardData.totalAmount)}</div>
+            <div className="text-2xl font-bold text-primary">{formatCurrency(dashboardData.totalAmount)}</div>
             <p className="text-xs text-muted-foreground">
               {selectedPeriod === 'custom' 
                 ? `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d')}`
@@ -307,39 +335,45 @@ const Dashboard = () => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Transactions</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-green-500/10 rounded-full">
+              <Receipt className="h-4 w-4 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.transactionCount}</div>
+            <div className="text-2xl font-bold text-green-600">{dashboardData.transactionCount}</div>
             <p className="text-xs text-muted-foreground">
               Number of receipts
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-orange-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Transaction</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-orange-500/10 rounded-full">
+              <TrendingUp className="h-4 w-4 text-orange-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardData.avgTransaction)}</div>
+            <div className="text-2xl font-bold text-orange-600">{formatCurrency(dashboardData.avgTransaction)}</div>
             <p className="text-xs text-muted-foreground">
               Per receipt
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-purple-500/10 rounded-full">
+              <TrendingDown className="h-4 w-4 text-purple-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-purple-600">
               {dashboardData.categoryBreakdown[0]?.category || 'None'}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -354,13 +388,13 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Category Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Spending by Category</CardTitle>
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold">Spending by Category</CardTitle>
           </CardHeader>
           <CardContent>
             {dashboardData.categoryBreakdown.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -370,33 +404,40 @@ const Dashboard = () => {
                         cy="50%"
                         labelLine={false}
                         label={({ category, percent }) => 
-                          `${category} (${(percent * 100).toFixed(0)}%)`
+                          percent > 0.05 ? `${category} (${(percent * 100).toFixed(0)}%)` : ''
                         }
-                        outerRadius={80}
+                        outerRadius={90}
+                        innerRadius={30}
                         fill="#8884d8"
                         dataKey="amount"
+                        stroke="transparent"
+                        strokeWidth={2}
                       >
                         {dashboardData.categoryBreakdown.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={CHART_COLORS[index % CHART_COLORS.length]}
+                            className="hover:opacity-80 transition-opacity duration-200"
+                          />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                      <Tooltip content={renderPieTooltip} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {dashboardData.categoryBreakdown.slice(0, 5).map((category, index) => (
-                    <div key={category.category} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div key={category.category} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors duration-200">
+                      <div className="flex items-center gap-3">
                         <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          className="w-4 h-4 rounded-full border-2 border-background shadow-sm" 
+                          style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
                         />
                         <span className="text-sm font-medium">{category.category}</span>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium">{formatCurrency(category.amount)}</div>
+                        <div className="text-sm font-semibold">{formatCurrency(category.amount)}</div>
                         <div className="text-xs text-muted-foreground">{category.count} items</div>
                       </div>
                     </div>
@@ -404,34 +445,51 @@ const Dashboard = () => {
                 </div>
               </div>
             ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                No spending data for this period
+              <div className="h-80 flex flex-col items-center justify-center text-muted-foreground">
+                <div className="text-6xl mb-4 opacity-20">📊</div>
+                <p className="text-lg font-medium">No spending data</p>
+                <p className="text-sm">for this period</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Daily Spending Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily Spending Trend</CardTitle>
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold">Daily Spending Trend</CardTitle>
           </CardHeader>
           <CardContent>
             {dashboardData.dailySpending.length > 0 ? (
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dashboardData.dailySpending}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis tickFormatter={(value) => `$${value}`} />
-                    <Tooltip />
-                    <Bar dataKey="amount" fill="#8884d8" />
+                  <BarChart data={dashboardData.dailySpending} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `$${value}`}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <Tooltip content={renderCustomTooltip} />
+                    <Bar 
+                      dataKey="amount" 
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                      className="hover:opacity-80 transition-opacity duration-200"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                No spending data for this period
+              <div className="h-80 flex flex-col items-center justify-center text-muted-foreground">
+                <div className="text-6xl mb-4 opacity-20">📈</div>
+                <p className="text-lg font-medium">No spending data</p>
+                <p className="text-sm">for this period</p>
               </div>
             )}
           </CardContent>
