@@ -12,7 +12,7 @@ import { useFamilyData } from "@/hooks/useFamilyData";
 import { Users, Plus, UserPlus, Mail, Crown, User, Trash2 } from "lucide-react";
 
 export const FamilyManager = () => {
-  const { families, familyMembers, userProfile, refetch } = useFamilyData();
+  const { families, familyMembers, userProfile, refetch, getUserRole } = useFamilyData();
   const [newFamilyName, setNewFamilyName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedFamilyForInvite, setSelectedFamilyForInvite] = useState<string>("");
@@ -68,7 +68,7 @@ export const FamilyManager = () => {
       toast.success("Invitation sent successfully!");
       setInviteEmail("");
       setSelectedFamilyForInvite("");
-      setInviteDialogOpen({});
+      setInviteDialogOpen({}); // close any open invite dialog
       fetchPendingInvitations();
     } catch (error) {
       console.error("Error sending invitation:", error);
@@ -124,15 +124,7 @@ export const FamilyManager = () => {
     }
   }, [families]);
 
-  const getUserRole = (familyId: string) => {
-    const members = familyMembers[familyId] || [];
-    const userMember = members.find(m => m.user_id === userProfile?.id);
-    return userMember?.role || 'member';
-  };
-
-  const canManageFamily = (familyId: string) => {
-    return getUserRole(familyId) === 'admin';
-  };
+  const canManageFamily = (familyId: string) => getUserRole(familyId) === 'admin';
 
   return (
     <div className="space-y-6">
@@ -251,7 +243,7 @@ export const FamilyManager = () => {
                           </div>
                         </div>
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setInviteDialogOpen(prev => ({ ...prev, [selectedFamilyForInvite]: false }))}>
+                          <Button variant="outline" onClick={() => setInviteDialogOpen(prev => ({ ...prev, [family.id]: false }))}>
                             Cancel
                           </Button>
                           <Button onClick={handleInviteUser} disabled={loading}>

@@ -26,6 +26,7 @@ export const useFamilyData = () => {
   const { user } = useAuth();
   const [families, setFamilies] = useState<Family[]>([]);
   const [familyMembers, setFamilyMembers] = useState<Record<string, FamilyMember[]>>({});
+  const [membershipRoles, setMembershipRoles] = useState<Record<string, string>>({});
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,8 +66,12 @@ export const useFamilyData = () => {
         const userFamilies = familyMemberships
           .filter(membership => membership.families)
           .map(membership => membership.families as Family);
-        
+        const rolesMap: Record<string, string> = {};
+        familyMemberships.forEach((m: any) => {
+          if (m.families) rolesMap[(m.families as Family).id] = m.role;
+        });
         setFamilies(userFamilies);
+        setMembershipRoles(rolesMap);
         
         // Get members for each family
         const allFamilyMembers: Record<string, FamilyMember[]> = {};
@@ -75,29 +80,37 @@ export const useFamilyData = () => {
           if (familyMembership.families) {
             const familyId = (familyMembership.families as Family).id;
             
-            const { data: members } = await supabase
+            const { data: members, error: membersError } = await supabase
               .from("family_members")
-              .select(`
-                id,
-                user_id,
-                role,
-                profiles!inner (
-                  name,
-                  email
-                )
-              `)
+              .select("id,user_id,role")
               .eq("family_id", familyId);
 
-            if (members) {
-              const transformedMembers: FamilyMember[] = members.map((member: any) => ({
-                id: member.id,
-                user_id: member.user_id,
-                role: member.role,
-                profile_name: member.profiles?.name,
-                profile_email: member.profiles?.email,
-              }));
-              allFamilyMembers[familyId] = transformedMembers;
+            if (membersError) {
+              console.error("Error fetching family members:", membersError);
+              continue;
             }
+
+            const userIds = (members || []).map((m: any) => m.user_id).filter(Boolean);
+            let profilesById: Record<string, { name: string | null; email: string | null }> = {};
+            if (userIds.length) {
+              const { data: profilesData } = await supabase
+                .from("profiles")
+                .select("id,name,email")
+                .in("id", userIds);
+              profilesById = (profilesData || []).reduce((acc: any, p: any) => {
+                acc[p.id] = { name: p.name, email: p.email };
+                return acc;
+              }, {});
+            }
+
+            const transformedMembers: FamilyMember[] = (members || []).map((member: any) => ({
+              id: member.id,
+              user_id: member.user_id,
+              role: member.role,
+              profile_name: profilesById[member.user_id]?.name,
+              profile_email: profilesById[member.user_id]?.email,
+            }));
+            allFamilyMembers[familyId] = transformedMembers;
           }
         }
         
@@ -119,10 +132,13 @@ export const useFamilyData = () => {
     if (userId === user?.id) {
       return userProfile?.name || userProfile?.email || "You";
     }
-    
     const familyMembersList = familyId ? familyMembers[familyId] : Object.values(familyMembers).flat();
     const member = familyMembersList?.find(m => m.user_id === userId);
     return member?.profile_name || member?.profile_email || "Unknown User";
+  };
+
+  const getUserRole = (familyId: string) => {
+    return membershipRoles[familyId] || 'member';
   };
 
   return {
@@ -131,6 +147,7 @@ export const useFamilyData = () => {
     userProfile,
     loading,
     getDisplayName,
+    getUserRole,
     refetch: fetchFamilyData,
   };
 };
