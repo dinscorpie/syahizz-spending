@@ -94,6 +94,12 @@ const TransactionHistory = () => {
     }
   }, [currentPage]);
 
+  // Initial load: fetch using RLS (no account filter yet)
+  useEffect(() => {
+    fetchTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
@@ -104,24 +110,18 @@ const TransactionHistory = () => {
         .select("*", { count: 'exact' })
         .order("date", { ascending: false });
 
-      // Apply account filtering
+      // Apply account filtering (only when we know the current account)
       if (currentAccount?.type === "family" && currentAccount.familyId) {
         query = query.eq("family_id", currentAccount.familyId);
-      } else if (currentAccount?.type === "personal") {
-        query = query
-          .eq("user_id", currentAccount.id)
-          .is("family_id", null);
-      } else {
-        // Fallback: show all user's receipts
-        query = query.eq("user_id", currentAccount?.id || "");
+      } else if (currentAccount?.type === "personal" && currentAccount.id) {
+        query = query.eq("user_id", currentAccount.id).is("family_id", null);
       }
+      // Else: no extra filter — rely on RLS to return only the authenticated user's data
 
       // Apply pagination
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
       query = query.range(from, to);
-
-      console.log("Fetching receipts with query for account:", currentAccount);
 
       const { data: receiptsData, error, count } = await query;
 
@@ -129,9 +129,6 @@ const TransactionHistory = () => {
         console.error("Supabase error:", error);
         throw error;
       }
-
-      console.log("Fetched receipts:", receiptsData);
-      console.log("Total count:", count);
 
       setReceipts(receiptsData || []);
       setTotalCount(count || 0);
