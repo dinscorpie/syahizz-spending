@@ -222,9 +222,11 @@ export default function Profile() {
   const createFamily = async () => {
     if (!user || !familyName.trim()) return;
     
+    console.log("Creating family with name:", familyName.trim());
     setUpdating(true);
     try {
       // Create the family
+      console.log("Inserting family into database...");
       const { data: familyData, error: familyError } = await supabase
         .from("families")
         .insert({
@@ -234,9 +236,15 @@ export default function Profile() {
         .select()
         .single();
 
-      if (familyError) throw familyError;
+      if (familyError) {
+        console.error("Family creation error:", familyError);
+        throw familyError;
+      }
+
+      console.log("Family created successfully:", familyData);
 
       // Add user as admin
+      console.log("Adding user as admin to family...");
       const { error: memberError } = await supabase
         .from("family_members")
         .insert({
@@ -245,19 +253,25 @@ export default function Profile() {
           role: "admin",
         });
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error("Family member creation error:", memberError);
+        throw memberError;
+      }
+
+      console.log("User added as admin successfully");
 
       toast({
         title: "Success",
         description: "Family created successfully!",
       });
 
+      console.log("Refreshing families...");
       fetchFamilies();
     } catch (error) {
       console.error("Error creating family:", error);
       toast({
         title: "Error",
-        description: "Failed to create family",
+        description: `Failed to create family: ${error.message || error}`,
         variant: "destructive",
       });
     }
@@ -626,7 +640,7 @@ export default function Profile() {
         )}
 
         {/* Create Family Section - Only show if no families exist */}
-        {families.length === 0 && (
+        {families.length === 0 && !loading && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -642,7 +656,7 @@ export default function Profile() {
                   id="newFamilyName"
                   value={familyName}
                   onChange={(e) => setFamilyName(e.target.value)}
-                  placeholder="Enter family name"
+                  placeholder="Enter family name (e.g., Smith Family)"
                 />
               </div>
               <Button 
