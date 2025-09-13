@@ -284,7 +284,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_family_ids: {
+        Args: { check_user_id: string }
+        Returns: string[]
+      }
+      is_family_admin: {
+        Args: { check_family_id: string; check_user_id: string }
+        Returns: boolean
+      }
+      is_family_member: {
+        Args: { check_family_id: string; check_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
