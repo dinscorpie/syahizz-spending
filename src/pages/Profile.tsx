@@ -219,14 +219,59 @@ export default function Profile() {
     setUpdating(false);
   };
 
+  const createFamily = async () => {
+    if (!user || !familyName.trim()) return;
+    
+    setUpdating(true);
+    try {
+      // Create the family
+      const { data: familyData, error: familyError } = await supabase
+        .from("families")
+        .insert({
+          name: familyName.trim(),
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (familyError) throw familyError;
+
+      // Add user as admin
+      const { error: memberError } = await supabase
+        .from("family_members")
+        .insert({
+          family_id: familyData.id,
+          user_id: user.id,
+          role: "admin",
+        });
+
+      if (memberError) throw memberError;
+
+      toast({
+        title: "Success",
+        description: "Family created successfully!",
+      });
+
+      fetchFamilies();
+    } catch (error) {
+      console.error("Error creating family:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create family",
+        variant: "destructive",
+      });
+    }
+    setUpdating(false);
+  };
+
   const updateFamilyName = async () => {
-    if (!family || !user) return;
+    if (!selectedFamilyId || !user) return;
     
     setUpdating(true);
     const { error } = await supabase
       .from("families")
       .update({ name: familyName })
-      .eq("id", family.id);
+      .eq("id", selectedFamilyId);
 
     if (error) {
       toast({
@@ -239,7 +284,7 @@ export default function Profile() {
         title: "Success",
         description: "Family name updated successfully",
       });
-      fetchFamily();
+      fetchFamilies();
     }
     setUpdating(false);
   };
@@ -273,11 +318,11 @@ export default function Profile() {
       }
 
       // Fetch invitations sent by this user (if they're family admin)
-      if (family) {
+      if (selectedFamilyId) {
         const { data: sent, error: sentError } = await supabase
           .from("family_invitations")
           .select("*")
-          .eq("family_id", family.id)
+          .eq("family_id", selectedFamilyId)
           .eq("invited_by", user.id)
           .eq("status", "pending");
 
@@ -290,6 +335,8 @@ export default function Profile() {
           })) || [];
           setSentInvitations(typedSent);
         }
+      } else {
+        setSentInvitations([]);
       }
     } catch (error) {
       console.error("Error fetching invitations:", error);
@@ -297,7 +344,7 @@ export default function Profile() {
   };
 
   const inviteFamilyMember = async () => {
-    if (!family || !inviteEmail.trim() || !user) return;
+    if (!selectedFamilyId || !inviteEmail.trim() || !user) return;
 
     setUpdating(true);
     try {
@@ -312,7 +359,7 @@ export default function Profile() {
         const { data: memberCheck } = await supabase
           .from("family_members")
           .select("id")
-          .eq("family_id", family.id)
+          .eq("family_id", selectedFamilyId)
           .eq("user_id", existingMember.id)
           .single();
 
@@ -331,7 +378,7 @@ export default function Profile() {
       const { data: existingInvitation } = await supabase
         .from("family_invitations")
         .select("id")
-        .eq("family_id", family.id)
+        .eq("family_id", selectedFamilyId)
         .eq("invited_email", inviteEmail.trim())
         .eq("status", "pending")
         .single();
@@ -350,7 +397,7 @@ export default function Profile() {
       const { error } = await supabase
         .from("family_invitations")
         .insert({
-          family_id: family.id,
+          family_id: selectedFamilyId,
           invited_email: inviteEmail.trim(),
           invited_by: user.id,
         });
@@ -398,7 +445,7 @@ export default function Profile() {
           title: "Success",
           description: "Invitation accepted! Welcome to the family!",
         });
-        fetchFamily();
+        fetchFamilies();
         fetchInvitations();
       }
     } catch (error) {
@@ -578,8 +625,39 @@ export default function Profile() {
           </Card>
         )}
 
-        {/* Family Section */}
-        {family && (
+        {/* Create Family Section - Only show if no families exist */}
+        {families.length === 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Create Your First Family
+              </CardTitle>
+              <CardDescription>Start by creating a family to manage shared expenses</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newFamilyName">Family Name</Label>
+                <Input
+                  id="newFamilyName"
+                  value={familyName}
+                  onChange={(e) => setFamilyName(e.target.value)}
+                  placeholder="Enter family name"
+                />
+              </div>
+              <Button 
+                onClick={createFamily} 
+                disabled={!familyName.trim() || updating}
+                className="w-full"
+              >
+                {updating ? "Creating..." : "Create Family"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Family Management Section - Show if families exist */}
+        {families.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -589,6 +667,36 @@ export default function Profile() {
               <CardDescription>Manage your family and shared expenses</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Family Selector */}
+              {families.length > 1 && (
+                <div className="space-y-2">
+                  <Label>Select Family</Label>
+                  <Select 
+                    value={selectedFamilyId || ""} 
+                    onValueChange={(value) => {
+                      setSelectedFamilyId(value);
+                      localStorage.setItem("profileSelectedFamilyId", value);
+                      const selected = families.find(f => f.id === value);
+                      if (selected) {
+                        setFamilyName(selected.name);
+                        fetchFamilyMembers(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a family" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {families.map((family) => (
+                        <SelectItem key={family.id} value={family.id}>
+                          {family.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {/* Family Name */}
               <div className="space-y-2">
                 <Label htmlFor="familyName">Family Name</Label>
