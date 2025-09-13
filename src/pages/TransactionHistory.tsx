@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAccountContext } from "@/hooks/useAccountContext";
+import { useAuth } from "@/hooks/useAuth";
 import { AccountSelector } from "@/components/AccountSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -62,6 +63,7 @@ interface Item {
 
 const TransactionHistory = () => {
   const { currentAccount } = useAccountContext();
+  const { user } = useAuth();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [items, setItems] = useState<Record<string, Item[]>>({});
   const [expandedReceipts, setExpandedReceipts] = useState<Set<string>>(new Set());
@@ -113,8 +115,8 @@ const TransactionHistory = () => {
       // Apply account filtering (only when we know the current account)
       if (currentAccount?.type === "family" && currentAccount.familyId) {
         query = query.eq("family_id", currentAccount.familyId);
-      } else if (currentAccount?.type === "personal" && currentAccount.id) {
-        query = query.eq("user_id", currentAccount.id).is("family_id", null);
+      } else if (currentAccount?.type === "personal" && user?.id) {
+        query = query.eq("user_id", user.id).is("family_id", null);
       }
       // Else: no extra filter — rely on RLS to return only the authenticated user's data
 
