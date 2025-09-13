@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { format, startOfWeek, startOfMonth, startOfYear, endOfWeek, endOfMonth, endOfYear, subDays } from 'date-fns';
-import { CalendarIcon, DollarSign, Receipt, TrendingUp, TrendingDown, Plus, BarChart3 } from 'lucide-react';
+import { CalendarIcon, DollarSign, Receipt, TrendingUp, TrendingDown, Plus, BarChart3, User, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,6 +52,7 @@ const Dashboard = () => {
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   const periodOptions = [
     { value: 'thisWeek', label: 'This Week' },
@@ -260,14 +262,33 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Your financial overview</p>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-primary">Family Finance Dashboard</h1>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => navigate("/profile")}>
+                <User className="h-4 w-4 mr-2" />
+                Profile
+              </Button>
+              <Button variant="outline" onClick={signOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-3">
+      </div>
+
+      <div className="container mx-auto py-6 px-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <div>
+            <p className="text-muted-foreground">Your financial overview</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
           <Button 
             onClick={() => navigate('/add-transaction')} 
             className="flex items-center gap-2"
@@ -506,6 +527,7 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

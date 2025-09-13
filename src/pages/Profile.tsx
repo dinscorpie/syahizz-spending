@@ -30,7 +30,8 @@ interface FamilyMember {
   user_id: string;
   role: string;
   joined_at: string;
-  profiles: Profile;
+  profile_name?: string;
+  profile_email?: string;
 }
 
 export default function Profile() {
@@ -106,18 +107,25 @@ export default function Profile() {
             role,
             joined_at,
             profiles!inner (
-              id,
               name,
-              email,
-              avatar_url
+              email
             )
           `)
           .eq("family_id", familyData.id);
 
         if (membersError) {
           console.error("Error fetching family members:", membersError);
-        } else {
-          setFamilyMembers(members as FamilyMember[] || []);
+        } else if (members) {
+          // Transform the data to match our interface
+          const transformedMembers: FamilyMember[] = members.map((member: any) => ({
+            id: member.id,
+            user_id: member.user_id,
+            role: member.role,
+            joined_at: member.joined_at,
+            profile_name: member.profiles?.name,
+            profile_email: member.profiles?.email,
+          }));
+          setFamilyMembers(transformedMembers);
         }
       }
     } catch (error) {
@@ -190,7 +198,7 @@ export default function Profile() {
   };
 
   const getDisplayName = (member: FamilyMember) => {
-    return member.profiles?.name || member.profiles?.email || "Unknown User";
+    return member.profile_name || member.profile_email || "Unknown User";
   };
 
   if (loading) {
@@ -284,7 +292,7 @@ export default function Profile() {
                         <div>
                           <p className="font-medium">{getDisplayName(member)}</p>
                           <p className="text-sm text-muted-foreground">
-                            {member.profiles?.email}
+                            {member.profile_email}
                           </p>
                         </div>
                         {member.role === "admin" && (

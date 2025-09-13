@@ -7,6 +7,7 @@ import { CalendarIcon, Upload, Plus, Trash2, Loader2, LogOut, BarChart3 } from '
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useFamilyData } from '@/hooks/useFamilyData';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,8 @@ const AddTransaction = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const { toast } = useToast();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { family } = useFamilyData();
   const navigate = useNavigate();
 
   const form = useForm<ReceiptFormData>({
@@ -194,7 +196,9 @@ const AddTransaction = () => {
           tax_amount: data.tax_amount,
           tip_amount: data.tip_amount,
           notes: data.notes,
-          user_id: (await supabase.auth.getUser()).data.user?.id || '',
+          user_id: user?.id || '',
+          family_id: family?.id || null,
+          added_by: user?.id || '',
           ai_extracted: !!uploadedImage,
         })
         .select()
