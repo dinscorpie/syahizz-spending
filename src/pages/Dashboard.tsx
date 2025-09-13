@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { format, startOfWeek, startOfMonth, startOfYear, endOfWeek, endOfMonth, endOfYear, subDays } from 'date-fns';
-import { CalendarIcon, DollarSign, Receipt, TrendingUp, TrendingDown } from 'lucide-react';
+import { CalendarIcon, DollarSign, Receipt, TrendingUp, TrendingDown, Plus, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +50,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const periodOptions = [
     { value: 'thisWeek', label: 'This Week' },
@@ -206,9 +208,9 @@ const Dashboard = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-MY', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'MYR',
     }).format(amount);
   };
 
@@ -263,6 +265,16 @@ const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Your financial overview</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={() => navigate('/add-transaction')} 
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Transaction
+          </Button>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-2">
@@ -470,11 +482,11 @@ const Dashboard = () => {
                       tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       axisLine={{ stroke: 'hsl(var(--border))' }}
                     />
-                    <YAxis 
-                      tickFormatter={(value) => `$${value}`}
-                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                      axisLine={{ stroke: 'hsl(var(--border))' }}
-                    />
+                     <YAxis 
+                       tickFormatter={(value) => `RM${value}`}
+                       tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                       axisLine={{ stroke: 'hsl(var(--border))' }}
+                     />
                     <Tooltip content={renderCustomTooltip} />
                     <Bar 
                       dataKey="amount" 
