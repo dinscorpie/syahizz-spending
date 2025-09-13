@@ -52,9 +52,11 @@ const Index = () => {
               <p className="text-muted-foreground mb-4">
                 View spending analytics and financial insights
               </p>
-              <Button variant="outline" className="w-full" disabled>
-                Coming Soon
-              </Button>
+              <Link to="/dashboard">
+                <Button variant="outline" className="w-full">
+                  View Dashboard
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
