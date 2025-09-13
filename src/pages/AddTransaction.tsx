@@ -3,9 +3,10 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Upload, Plus, Trash2, Loader2 } from 'lucide-react';
+import { CalendarIcon, Upload, Plus, Trash2, Loader2, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +51,7 @@ const AddTransaction = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const { toast } = useToast();
+  const { signOut } = useAuth();
 
   const form = useForm<ReceiptFormData>({
     resolver: zodResolver(receiptSchema),
@@ -246,9 +248,16 @@ const AddTransaction = () => {
 
   return (
     <div className="container mx-auto py-6 px-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Add Transaction</h1>
+        <Button variant="outline" onClick={signOut}>
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
+      </div>
       <Card>
         <CardHeader>
-          <CardTitle>Add Transaction</CardTitle>
+          <CardTitle>Transaction Details</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">

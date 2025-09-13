@@ -154,13 +154,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "receipts_user_id_users_id_fk"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "receipts_vendor_id_vendors_id_fk"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -168,30 +161,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      users: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          password: string
-          username: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          password: string
-          username: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          password?: string
-          username?: string
-        }
-        Relationships: []
       }
       vendors: {
         Row: {
