@@ -17,7 +17,7 @@ export const FamilyManager = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedFamilyForInvite, setSelectedFamilyForInvite] = useState<string>("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState<Record<string, boolean>>({});
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -68,7 +68,7 @@ export const FamilyManager = () => {
       toast.success("Invitation sent successfully!");
       setInviteEmail("");
       setSelectedFamilyForInvite("");
-      setInviteDialogOpen(false);
+      setInviteDialogOpen({});
       fetchPendingInvitations();
     } catch (error) {
       console.error("Error sending invitation:", error);
@@ -201,7 +201,10 @@ export const FamilyManager = () => {
                     </Badge>
                   </div>
                   {canManageFamily(family.id) && (
-                    <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                    <Dialog 
+                      open={inviteDialogOpen[family.id] || false} 
+                      onOpenChange={(open) => setInviteDialogOpen(prev => ({ ...prev, [family.id]: open }))}
+                    >
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline">
                           <UserPlus className="h-4 w-4 mr-2" />
@@ -248,7 +251,7 @@ export const FamilyManager = () => {
                           </div>
                         </div>
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                          <Button variant="outline" onClick={() => setInviteDialogOpen(prev => ({ ...prev, [selectedFamilyForInvite]: false }))}>
                             Cancel
                           </Button>
                           <Button onClick={handleInviteUser} disabled={loading}>
