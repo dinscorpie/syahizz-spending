@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAccountContext } from "@/hooks/useAccountContext";
+import { AccountSelector } from "@/components/AccountSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,9 @@ import {
   Pencil, 
   Trash2,
   Calendar,
-  DollarSign 
+  DollarSign,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -65,6 +68,8 @@ const TransactionHistory = () => {
   const [loading, setLoading] = useState(true);
   const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
   const [deleteReceiptId, setDeleteReceiptId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [editForm, setEditForm] = useState({
     vendor_name: "",
     total_amount: "",
@@ -72,31 +77,58 @@ const TransactionHistory = () => {
     notes: ""
   });
 
+  const ITEMS_PER_PAGE = 20;
+
   useEffect(() => {
     if (currentAccount) {
+      setCurrentPage(1); // Reset to first page when account changes
       fetchTransactions();
     }
   }, [currentAccount]);
 
+  useEffect(() => {
+    if (currentAccount) {
+      fetchTransactions();
+    }
+  }, [currentPage]);
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
+      
+      // Build the base query
       let query = supabase
         .from("receipts")
-        .select("*")
+        .select("*", { count: 'exact' })
         .order("date", { ascending: false });
 
-      if (currentAccount?.type === "family") {
+      // Apply account filtering
+      if (currentAccount?.type === "family" && currentAccount.familyId) {
         query = query.eq("family_id", currentAccount.familyId);
-      } else {
-        query = query.eq("user_id", currentAccount?.id);
+      } else if (currentAccount?.type === "personal") {
+        query = query
+          .eq("user_id", currentAccount.id)
+          .is("family_id", null);
       }
 
-      const { data: receiptsData, error } = await query;
+      // Apply pagination
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to);
 
-      if (error) throw error;
+      const { data: receiptsData, error, count } = await query;
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      console.log("Fetched receipts:", receiptsData);
+      console.log("Total count:", count);
+      console.log("Current account:", currentAccount);
 
       setReceipts(receiptsData || []);
+      setTotalCount(count || 0);
     } catch (error) {
       console.error("Error fetching transactions:", error);
       toast.error("Failed to load transactions");
@@ -211,9 +243,19 @@ const TransactionHistory = () => {
     }
   };
 
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
   if (loading) {
     return (
       <div className="container mx-auto py-6 px-4">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <p className="text-muted-foreground mt-1">
+              Viewing: {currentAccount?.name}
+            </p>
+          </div>
+          <AccountSelector />
+        </div>
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
             <Card key={i}>
@@ -233,93 +275,148 @@ const TransactionHistory = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <p className="text-muted-foreground mt-1">
-            Viewing: {currentAccount?.name}
+            Viewing: {currentAccount?.name} ({totalCount} transactions)
           </p>
         </div>
+        <AccountSelector />
       </div>
 
       {receipts.length === 0 ? (
         <Card>
           <CardContent className="text-center py-8">
-            <p className="text-muted-foreground">No transactions found</p>
+            <p className="text-muted-foreground">No transactions found for this account</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {receipts.map((receipt) => (
-            <Card key={receipt.id} className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-                  <div 
-                    className="flex items-center gap-3 flex-1 cursor-pointer"
-                    onClick={() => toggleExpanded(receipt.id)}
-                  >
-                    {expandedReceipts.has(receipt.id) ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-medium">{receipt.vendor_name}</h3>
-                        <Badge variant="secondary" className="text-xs">
-                          <DollarSign className="h-3 w-3 mr-1" />
-                          ${receipt.total_amount.toFixed(2)}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(receipt.date), "MMM dd, yyyy")}
+        <>
+          <div className="space-y-3">
+            {receipts.map((receipt) => (
+              <Card key={receipt.id} className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                    <div 
+                      className="flex items-center gap-3 flex-1 cursor-pointer"
+                      onClick={() => toggleExpanded(receipt.id)}
+                    >
+                      {expandedReceipts.has(receipt.id) ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-medium">{receipt.vendor_name}</h3>
+                          <Badge variant="secondary" className="text-xs">
+                            <DollarSign className="h-3 w-3 mr-1" />
+                            ${receipt.total_amount.toFixed(2)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(receipt.date), "MMM dd, yyyy")}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(receipt);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(receipt);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
 
-                {expandedReceipts.has(receipt.id) && (
-                  <div className="border-t bg-muted/20 p-4">
-                    {items[receipt.id]?.length > 0 ? (
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-muted-foreground mb-3">Items:</h4>
-                        {items[receipt.id].map((item) => (
-                          <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-background rounded-md">
-                            <div>
-                              <span className="font-medium">{item.name}</span>
-                              {item.category_path && (
-                                <Badge variant="outline" className="ml-2 text-xs">
-                                  {item.category_path}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm">
-                                {item.quantity} × ${item.unit_price.toFixed(2)}
+                  {expandedReceipts.has(receipt.id) && (
+                    <div className="border-t bg-muted/20 p-4">
+                      {items[receipt.id]?.length > 0 ? (
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm text-muted-foreground mb-3">Items:</h4>
+                          {items[receipt.id].map((item) => (
+                            <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-background rounded-md">
+                              <div>
+                                <span className="font-medium">{item.name}</span>
+                                {item.category_path && (
+                                  <Badge variant="outline" className="ml-2 text-xs">
+                                    {item.category_path}
+                                  </Badge>
+                                )}
                               </div>
-                              <div className="font-medium">${item.total_price.toFixed(2)}</div>
+                              <div className="text-right">
+                                <div className="text-sm">
+                                  {item.quantity} × ${item.unit_price.toFixed(2)}
+                                </div>
+                                <div className="font-medium">${item.total_price.toFixed(2)}</div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No items found</p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No items found</p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRightIcon className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Edit Dialog */}
