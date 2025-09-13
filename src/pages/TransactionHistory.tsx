@@ -311,9 +311,9 @@ const TransactionHistory = () => {
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
                           <h3 className="font-medium">{receipt.vendor_name}</h3>
-                          <Badge variant="secondary" className="text-xs">
+                           <Badge variant="secondary" className="text-xs">
                             <DollarSign className="h-3 w-3 mr-1" />
-                            ${receipt.total_amount.toFixed(2)}
+                            RM{receipt.total_amount.toFixed(2)}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
@@ -352,10 +352,10 @@ const TransactionHistory = () => {
                                 )}
                               </div>
                               <div className="text-right">
-                                <div className="text-sm">
-                                  {item.quantity} × ${item.unit_price.toFixed(2)}
-                                </div>
-                                <div className="font-medium">${item.total_price.toFixed(2)}</div>
+                                 <div className="text-sm">
+                                   {item.quantity} × RM{item.unit_price.toFixed(2)}
+                                 </div>
+                                 <div className="font-medium">RM{item.total_price.toFixed(2)}</div>
                               </div>
                             </div>
                           ))}
