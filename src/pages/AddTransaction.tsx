@@ -7,7 +7,8 @@ import { CalendarIcon, Upload, Plus, Trash2, Loader2, LogOut, BarChart3 } from '
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useFamilyData } from '@/hooks/useFamilyData';
+import { useAccountContext } from '@/hooks/useAccountContext';
+import { AccountSelector } from '@/components/AccountSelector';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -54,7 +55,7 @@ const AddTransaction = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
-  const { family } = useFamilyData();
+  const { currentAccount } = useAccountContext();
   const navigate = useNavigate();
 
   const form = useForm<ReceiptFormData>({
@@ -197,7 +198,7 @@ const AddTransaction = () => {
           tip_amount: data.tip_amount,
           notes: data.notes,
           user_id: user?.id || '',
-          family_id: family?.id || null,
+          family_id: currentAccount?.type === 'family' ? currentAccount.familyId : null,
           added_by: user?.id || '',
           ai_extracted: !!uploadedImage,
         })
@@ -255,7 +256,12 @@ const AddTransaction = () => {
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Add Transaction</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Add Transaction</h1>
+          <p className="text-muted-foreground mt-1">
+            Recording to: {currentAccount?.name}
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <Button 
             variant="outline" 
@@ -269,6 +275,12 @@ const AddTransaction = () => {
             Sign Out
           </Button>
         </div>
+      </div>
+      
+      {/* Account Selector */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-2">Save to Account</label>
+        <AccountSelector className="w-[250px]" />
       </div>
       <Card>
         <CardHeader>

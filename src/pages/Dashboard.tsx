@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAccountContext } from '@/hooks/useAccountContext';
+import { AccountSelector } from '@/components/AccountSelector';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +55,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { currentAccount } = useAccountContext();
 
   const periodOptions = [
     { value: 'thisWeek', label: 'This Week' },
@@ -81,8 +84,10 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [selectedPeriod, customDateRange]);
+    if (currentAccount) {
+      fetchDashboardData();
+    }
+  }, [selectedPeriod, customDateRange, currentAccount]);
 
   const fetchCategories = async () => {
     try {
@@ -119,14 +124,16 @@ const Dashboard = () => {
   };
 
   const fetchDashboardData = async () => {
+    if (!currentAccount) return;
+    
     setIsLoading(true);
     try {
       const dateRange = getDateRange();
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Fetch receipts with items and categories
-      const { data: receiptsData, error: receiptsError } = await supabase
+      // Build query based on account type
+      let query = supabase
         .from('receipts')
         .select(`
           *,
@@ -138,8 +145,16 @@ const Dashboard = () => {
           )
         `)
         .gte('date', fromDate)
-        .lte('date', toDate)
-        .order('date', { ascending: false });
+        .lte('date', toDate);
+
+      // Filter by account type
+      if (currentAccount.type === 'personal') {
+        query = query.is('family_id', null);
+      } else if (currentAccount.type === 'family') {
+        query = query.eq('family_id', currentAccount.familyId);
+      }
+
+      const { data: receiptsData, error: receiptsError } = await query.order('date', { ascending: false });
 
       if (receiptsError) throw receiptsError;
 
@@ -267,7 +282,12 @@ const Dashboard = () => {
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-primary">Family Finance Dashboard</h1>
+            <div>
+              <h1 className="text-3xl font-bold text-primary">Finance Dashboard</h1>
+              <p className="text-muted-foreground mt-1">
+                Viewing: {currentAccount?.name}
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={() => navigate("/profile")}>
                 <User className="h-4 w-4 mr-2" />
@@ -284,19 +304,22 @@ const Dashboard = () => {
 
       <div className="container mx-auto py-6 px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <p className="text-muted-foreground">Your financial overview</p>
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-muted-foreground">Account:</p>
+            </div>
+            <AccountSelector className="w-[250px]" />
           </div>
           
           <div className="flex items-center gap-3">
-          <Button 
-            onClick={() => navigate('/add-transaction')} 
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Transaction
-          </Button>
-        </div>
+            <Button 
+              onClick={() => navigate('/add-transaction')} 
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Transaction
+            </Button>
+          </div>
         
         <div className="flex flex-col sm:flex-row gap-2">
           <Select value={selectedPeriod} onValueChange={handlePeriodChange}>

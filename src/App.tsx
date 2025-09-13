@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { AccountProvider } from "@/hooks/useAccountContext";
 import Index from "./pages/Index";
 import AddTransaction from "./pages/AddTransaction";
 import Dashboard from "./pages/Dashboard";
@@ -30,16 +31,18 @@ const AppContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNavigation />
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/add-transaction" element={<AddTransaction />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </div>
+    <AccountProvider>
+      <div className="min-h-screen bg-background">
+        <AppNavigation />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/add-transaction" element={<AddTransaction />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    </AccountProvider>
   );
 };
 
