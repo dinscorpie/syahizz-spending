@@ -302,144 +302,134 @@ const Dashboard = () => {
       </div>
 
       <div className="container mx-auto py-6 px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="text-muted-foreground">Account:</p>
+        {/* Controls Row */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Account:</span>
+              <AccountSelector className="w-[200px]" />
             </div>
-            <AccountSelector className="w-[250px]" />
+            
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {periodOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {selectedPeriod === 'custom' && (
+                <Popover open={showCustomPicker} onOpenChange={setShowCustomPicker}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[250px] justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange.from && customDateRange.to ? (
+                        <>
+                          {format(customDateRange.from, "MMM dd")} - {format(customDateRange.to, "MMM dd")}
+                        </>
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={customDateRange.from}
+                      selected={customDateRange}
+                      onSelect={(range) => {
+                        if (range?.from && range?.to) {
+                          setCustomDateRange({ from: range.from, to: range.to });
+                          setShowCustomPicker(false);
+                        }
+                      }}
+                      numberOfMonths={2}
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => navigate('/add-transaction')} 
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Transaction
-            </Button>
-          </div>
-        
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              {periodOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {selectedPeriod === 'custom' && (
-            <Popover open={showCustomPicker} onOpenChange={setShowCustomPicker}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {customDateRange.from && customDateRange.to ? (
-                    <>
-                      {format(customDateRange.from, "LLL dd, y")} -{" "}
-                      {format(customDateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    <span>Pick a date range</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={customDateRange.from}
-                  selected={customDateRange}
-                  onSelect={(range) => {
-                    if (range?.from && range?.to) {
-                      setCustomDateRange({ from: range.from, to: range.to });
-                      setShowCustomPicker(false);
-                    }
-                  }}
-                  numberOfMonths={2}
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          )}
+          <Button 
+            onClick={() => navigate('/add-transaction')} 
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Transaction
+          </Button>
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-            <div className="p-2 bg-primary/10 rounded-full">
-              <DollarSign className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(dashboardData.totalAmount)}</div>
-            <p className="text-xs text-muted-foreground">
-              {selectedPeriod === 'custom' 
-                ? `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d')}`
-                : periodOptions.find(p => p.value === selectedPeriod)?.label
-              }
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Transactions</CardTitle>
-            <div className="p-2 bg-green-500/10 rounded-full">
-              <Receipt className="h-4 w-4 text-green-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{dashboardData.transactionCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Number of receipts
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-orange-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Transaction</CardTitle>
-            <div className="p-2 bg-orange-500/10 rounded-full">
-              <TrendingUp className="h-4 w-4 text-orange-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(dashboardData.avgTransaction)}</div>
-            <p className="text-xs text-muted-foreground">
-              Per receipt
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-            <div className="p-2 bg-purple-500/10 rounded-full">
-              <TrendingDown className="h-4 w-4 text-purple-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {dashboardData.categoryBreakdown[0]?.category || 'None'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardData.categoryBreakdown[0] 
-                ? formatCurrency(dashboardData.categoryBreakdown[0].amount)
-                : 'No data'
-              }
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          {/* Primary Stats Card */}
+          <Card className="hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-primary" />
+                Financial Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <div className="text-2xl font-bold text-primary">{formatCurrency(dashboardData.totalAmount)}</div>
+                  <p className="text-sm text-muted-foreground">Total Spent</p>
+                </div>
+                <div className="text-center p-3 bg-green-500/5 rounded-lg border border-green-500/20">
+                  <div className="text-2xl font-bold text-green-600">{formatCurrency(dashboardData.avgTransaction)}</div>
+                  <p className="text-sm text-muted-foreground">Avg per Receipt</p>
+                </div>
+              </div>
+              <div className="text-center text-xs text-muted-foreground">
+                {selectedPeriod === 'custom' 
+                  ? `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d')}`
+                  : periodOptions.find(p => p.value === selectedPeriod)?.label
+                }
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Activity Stats Card */}
+          <Card className="hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-orange-600" />
+                Activity Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 bg-orange-500/5 rounded-lg border border-orange-500/20">
+                  <div className="text-2xl font-bold text-orange-600">{dashboardData.transactionCount}</div>
+                  <p className="text-sm text-muted-foreground">Receipts</p>
+                </div>
+                <div className="text-center p-3 bg-purple-500/5 rounded-lg border border-purple-500/20">
+                  <div className="text-lg font-bold text-purple-600">
+                    {dashboardData.categoryBreakdown[0]?.category || 'None'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Top Category</p>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  Top spending: {dashboardData.categoryBreakdown[0] 
+                    ? formatCurrency(dashboardData.categoryBreakdown[0].amount)
+                    : 'No data'
+                  }
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Category Breakdown */}
