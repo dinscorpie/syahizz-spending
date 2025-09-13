@@ -77,6 +77,13 @@ const TransactionHistory = () => {
     date: "",
     notes: ""
   });
+  const [editingItems, setEditingItems] = useState<Item[]>([]);
+  const [newItem, setNewItem] = useState({
+    name: "",
+    quantity: "1",
+    unit_price: "",
+    category_path: ""
+  });
 
   const ITEMS_PER_PAGE = 20;
 
@@ -174,7 +181,7 @@ const TransactionHistory = () => {
     setExpandedReceipts(newExpanded);
   };
 
-  const handleEdit = (receipt: Receipt) => {
+  const handleEdit = async (receipt: Receipt) => {
     setEditingReceipt(receipt);
     setEditForm({
       vendor_name: receipt.vendor_name,
@@ -182,13 +189,20 @@ const TransactionHistory = () => {
       date: format(new Date(receipt.date), "yyyy-MM-dd"),
       notes: receipt.notes || ""
     });
+    
+    // Fetch items for editing
+    if (!items[receipt.id]) {
+      await fetchItems(receipt.id);
+    }
+    setEditingItems(items[receipt.id] || []);
   };
 
   const handleSaveEdit = async () => {
     if (!editingReceipt) return;
 
     try {
-      const { error } = await supabase
+      // Update receipt
+      const { error: receiptError } = await supabase
         .from("receipts")
         .update({
           vendor_name: editForm.vendor_name,
@@ -198,19 +212,119 @@ const TransactionHistory = () => {
         })
         .eq("id", editingReceipt.id);
 
-      if (error) throw error;
+      if (receiptError) throw receiptError;
 
+      // Update items
+      for (const item of editingItems) {
+        const { error: itemError } = await supabase
+          .from("items")
+          .update({
+            name: item.name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price,
+            category_path: item.category_path
+          })
+          .eq("id", item.id);
+
+        if (itemError) throw itemError;
+      }
+
+      // Update local state
       setReceipts(prev => prev.map(receipt => 
         receipt.id === editingReceipt.id 
           ? { ...receipt, ...editForm, total_amount: parseFloat(editForm.total_amount) }
           : receipt
       ));
 
+      setItems(prev => ({
+        ...prev,
+        [editingReceipt.id]: editingItems
+      }));
+
       setEditingReceipt(null);
-      toast.success("Receipt updated successfully");
+      setEditingItems([]);
+      toast.success("Receipt and items updated successfully");
     } catch (error) {
       console.error("Error updating receipt:", error);
       toast.error("Failed to update receipt");
+    }
+  };
+
+  const handleItemChange = (index: number, field: keyof Item, value: string | number) => {
+    setEditingItems(prev => prev.map((item, i) => {
+      if (i === index) {
+        const updatedItem = { ...item, [field]: value };
+        if (field === 'quantity' || field === 'unit_price') {
+          updatedItem.total_price = updatedItem.quantity * updatedItem.unit_price;
+        }
+        return updatedItem;
+      }
+      return item;
+    }));
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      const { error } = await supabase
+        .from("items")
+        .delete()
+        .eq("id", itemId);
+
+      if (error) throw error;
+
+      setEditingItems(prev => prev.filter(item => item.id !== itemId));
+      if (editingReceipt) {
+        setItems(prev => ({
+          ...prev,
+          [editingReceipt.id]: prev[editingReceipt.id]?.filter(item => item.id !== itemId) || []
+        }));
+      }
+      toast.success("Item deleted successfully");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast.error("Failed to delete item");
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!editingReceipt || !newItem.name || !newItem.unit_price) return;
+
+    try {
+      const totalPrice = parseInt(newItem.quantity) * parseFloat(newItem.unit_price);
+      
+      const { data, error } = await supabase
+        .from("items")
+        .insert({
+          name: newItem.name,
+          quantity: parseInt(newItem.quantity),
+          unit_price: parseFloat(newItem.unit_price),
+          total_price: totalPrice,
+          category_path: newItem.category_path || null,
+          receipt_id: editingReceipt.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setEditingItems(prev => [...prev, data]);
+      setItems(prev => ({
+        ...prev,
+        [editingReceipt.id]: [...(prev[editingReceipt.id] || []), data]
+      }));
+
+      setNewItem({
+        name: "",
+        quantity: "1",
+        unit_price: "",
+        category_path: ""
+      });
+
+      toast.success("Item added successfully");
+    } catch (error) {
+      console.error("Error adding item:", error);
+      toast.error("Failed to add item");
     }
   };
 
@@ -423,51 +537,154 @@ const TransactionHistory = () => {
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingReceipt} onOpenChange={() => setEditingReceipt(null)}>
-        <DialogContent>
+      <Dialog open={!!editingReceipt} onOpenChange={() => {
+        setEditingReceipt(null);
+        setEditingItems([]);
+        setNewItem({ name: "", quantity: "1", unit_price: "", category_path: "" });
+      }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Receipt</DialogTitle>
             <DialogDescription>
-              Update the receipt details below
+              Update the receipt details and manage items
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="vendor_name">Vendor Name</Label>
-              <Input
-                id="vendor_name"
-                value={editForm.vendor_name}
-                onChange={(e) => setEditForm(prev => ({ ...prev, vendor_name: e.target.value }))}
-              />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Receipt Details */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Receipt Details</h3>
+              <div>
+                <Label htmlFor="vendor_name">Vendor Name</Label>
+                <Input
+                  id="vendor_name"
+                  value={editForm.vendor_name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, vendor_name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="total_amount">Total Amount</Label>
+                <Input
+                  id="total_amount"
+                  type="number"
+                  step="0.01"
+                  value={editForm.total_amount}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, total_amount: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={editForm.date}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="total_amount">Total Amount</Label>
-              <Input
-                id="total_amount"
-                type="number"
-                step="0.01"
-                value={editForm.total_amount}
-                onChange={(e) => setEditForm(prev => ({ ...prev, total_amount: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={editForm.date}
-                onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={editForm.notes}
-                onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-              />
+
+            {/* Items Management */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Items</h3>
+              
+              {/* Existing Items */}
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {editingItems.map((item, index) => (
+                  <Card key={item.id} className="p-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Input
+                          value={item.name}
+                          onChange={(e) => handleItemChange(index, 'name', e.target.value)}
+                          placeholder="Item name"
+                          className="flex-1 mr-2"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteItem(item.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                          placeholder="Qty"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.unit_price}
+                          onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                          placeholder="Unit price"
+                        />
+                      </div>
+                      <Input
+                        value={item.category_path || ''}
+                        onChange={(e) => handleItemChange(index, 'category_path', e.target.value)}
+                        placeholder="Category (optional)"
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        Total: RM{item.total_price.toFixed(2)}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Add New Item */}
+              <Card className="p-3 border-dashed">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Add New Item</h4>
+                  <Input
+                    value={newItem.name}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Item name"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      value={newItem.quantity}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, quantity: e.target.value }))}
+                      placeholder="Quantity"
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newItem.unit_price}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, unit_price: e.target.value }))}
+                      placeholder="Unit price"
+                    />
+                  </div>
+                  <Input
+                    value={newItem.category_path}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, category_path: e.target.value }))}
+                    placeholder="Category (optional)"
+                  />
+                  <Button 
+                    onClick={handleAddItem} 
+                    className="w-full" 
+                    size="sm"
+                    disabled={!newItem.name || !newItem.unit_price}
+                  >
+                    Add Item
+                  </Button>
+                </div>
+              </Card>
             </div>
           </div>
+
           <DialogFooter className="gap-2">
             <Button
               variant="destructive"
@@ -477,9 +694,13 @@ const TransactionHistory = () => {
               }}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              Delete Receipt
             </Button>
-            <Button variant="outline" onClick={() => setEditingReceipt(null)}>
+            <Button variant="outline" onClick={() => {
+              setEditingReceipt(null);
+              setEditingItems([]);
+              setNewItem({ name: "", quantity: "1", unit_price: "", category_path: "" });
+            }}>
               Cancel
             </Button>
             <Button onClick={handleSaveEdit}>Save Changes</Button>
