@@ -12,8 +12,8 @@ const AppNavigation = () => {
   const location = useLocation();
 
   const navItems = [
-    { href: "/", label: "Home" },
-    { href: "/dashboard", label: "Dashboard" },
+    { href: "/", label: "Dashboard" },
+    { href: "/history", label: "Transaction History" },
     { href: "/add-transaction", label: "Add Transaction" },
     { href: "/profile", label: "Profile" },
   ];
