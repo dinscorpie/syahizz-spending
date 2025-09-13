@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   name: string | null;
   email: string | null;
+  created_at?: string;
 }
 
 interface Family {
@@ -60,7 +61,7 @@ export const useFamilyData = () => {
         `)
         .eq("user_id", user.id);
 
-      if (familyMemberships) {
+      if (familyMemberships && familyMemberships.length > 0) {
         const userFamilies = familyMemberships
           .filter(membership => membership.families)
           .map(membership => membership.families as Family);
@@ -101,9 +102,14 @@ export const useFamilyData = () => {
         }
         
         setFamilyMembers(allFamilyMembers);
+      } else {
+        setFamilies([]);
+        setFamilyMembers({});
       }
     } catch (error) {
       console.error("Error fetching family data:", error);
+      setFamilies([]);
+      setFamilyMembers({});
     } finally {
       setLoading(false);
     }

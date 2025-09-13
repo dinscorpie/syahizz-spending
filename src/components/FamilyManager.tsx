@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,16 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useFamilyData } from "@/hooks/useFamilyData";
 import { Users, Plus, UserPlus, Mail, Crown, User, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export const FamilyManager = () => {
   const { families, familyMembers, userProfile, refetch } = useFamilyData();
@@ -28,7 +18,6 @@ export const FamilyManager = () => {
   const [selectedFamilyForInvite, setSelectedFamilyForInvite] = useState<string>("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [deletingInviteId, setDeletingInviteId] = useState<string | null>(null);
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -91,6 +80,8 @@ export const FamilyManager = () => {
 
   const fetchPendingInvitations = async () => {
     try {
+      if (families.length === 0) return;
+      
       const { data, error } = await supabase
         .from("family_invitations")
         .select(`
@@ -109,19 +100,16 @@ export const FamilyManager = () => {
     }
   };
 
-  const handleDeleteInvitation = async () => {
-    if (!deletingInviteId) return;
-
+  const handleDeleteInvitation = async (invitationId: string) => {
     try {
       const { error } = await supabase
         .from("family_invitations")
         .delete()
-        .eq("id", deletingInviteId);
+        .eq("id", invitationId);
 
       if (error) throw error;
 
       toast.success("Invitation cancelled");
-      setDeletingInviteId(null);
       fetchPendingInvitations();
     } catch (error) {
       console.error("Error deleting invitation:", error);
@@ -129,12 +117,12 @@ export const FamilyManager = () => {
     }
   };
 
-  // Fetch pending invitations when component mounts or families change
-  useState(() => {
+  // Fetch pending invitations when families change
+  useEffect(() => {
     if (families.length > 0) {
       fetchPendingInvitations();
     }
-  });
+  }, [families]);
 
   const getUserRole = (familyId: string) => {
     const members = familyMembers[familyId] || [];
@@ -190,106 +178,118 @@ export const FamilyManager = () => {
 
       {/* Families List */}
       <div className="grid gap-4">
-        {families.map((family) => (
-          <Card key={family.id}>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  <CardTitle>{family.name}</CardTitle>
-                  <Badge variant={canManageFamily(family.id) ? "default" : "secondary"}>
-                    {getUserRole(family.id)}
-                  </Badge>
-                </div>
-                {canManageFamily(family.id) && (
-                  <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Invite Member
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Invite Family Member</DialogTitle>
-                        <DialogDescription>
-                          Send an invitation to join your family.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="familySelect">Select Family</Label>
-                          <Select 
-                            value={selectedFamilyForInvite} 
-                            onValueChange={setSelectedFamilyForInvite}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose which family to invite to..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {families
-                                .filter(f => canManageFamily(f.id))
-                                .map((family) => (
-                                  <SelectItem key={family.id} value={family.id}>
-                                    {family.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="inviteEmail">Email Address</Label>
-                          <Input
-                            id="inviteEmail"
-                            type="email"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            placeholder="Enter email address..."
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleInviteUser} disabled={loading}>
-                          {loading ? "Sending..." : "Send Invitation"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm">Members:</h4>
-                <div className="space-y-2">
-                  {(familyMembers[family.id] || []).map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                      <div className="flex items-center gap-2">
-                        {member.role === 'admin' ? (
-                          <Crown className="h-4 w-4 text-yellow-600" />
-                        ) : (
-                          <User className="h-4 w-4 text-gray-600" />
-                        )}
-                        <span className="font-medium">
-                          {member.profile_name || member.profile_email}
-                        </span>
-                        {member.user_id === userProfile?.id && (
-                          <Badge variant="outline" className="text-xs">You</Badge>
-                        )}
-                      </div>
-                      <Badge variant={member.role === 'admin' ? "default" : "secondary"}>
-                        {member.role}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {families.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No families yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first family to start sharing expenses with others
+              </p>
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          families.map((family) => (
+            <Card key={family.id}>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    <CardTitle>{family.name}</CardTitle>
+                    <Badge variant={canManageFamily(family.id) ? "default" : "secondary"}>
+                      {getUserRole(family.id)}
+                    </Badge>
+                  </div>
+                  {canManageFamily(family.id) && (
+                    <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Invite Member
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Invite Family Member</DialogTitle>
+                          <DialogDescription>
+                            Send an invitation to join your family.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="familySelect">Select Family</Label>
+                            <Select 
+                              value={selectedFamilyForInvite} 
+                              onValueChange={setSelectedFamilyForInvite}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose which family to invite to..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {families
+                                  .filter(f => canManageFamily(f.id))
+                                  .map((family) => (
+                                    <SelectItem key={family.id} value={family.id}>
+                                      {family.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="inviteEmail">Email Address</Label>
+                            <Input
+                              id="inviteEmail"
+                              type="email"
+                              value={inviteEmail}
+                              onChange={(e) => setInviteEmail(e.target.value)}
+                              placeholder="Enter email address..."
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleInviteUser} disabled={loading}>
+                            {loading ? "Sending..." : "Send Invitation"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Members:</h4>
+                  <div className="space-y-2">
+                    {(familyMembers[family.id] || []).map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                        <div className="flex items-center gap-2">
+                          {member.role === 'admin' ? (
+                            <Crown className="h-4 w-4 text-yellow-600" />
+                          ) : (
+                            <User className="h-4 w-4 text-gray-600" />
+                          )}
+                          <span className="font-medium">
+                            {member.profile_name || member.profile_email}
+                          </span>
+                          {member.user_id === userProfile?.id && (
+                            <Badge variant="outline" className="text-xs">You</Badge>
+                          )}
+                        </div>
+                        <Badge variant={member.role === 'admin' ? "default" : "secondary"}>
+                          {member.role}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Pending Invitations */}
@@ -314,7 +314,7 @@ export const FamilyManager = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => setDeletingInviteId(invitation.id)}
+                    onClick={() => handleDeleteInvitation(invitation.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -324,24 +324,6 @@ export const FamilyManager = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Delete Invitation Confirmation */}
-      <AlertDialog open={!!deletingInviteId} onOpenChange={() => setDeletingInviteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to cancel this invitation? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteInvitation}>
-              Cancel Invitation
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
