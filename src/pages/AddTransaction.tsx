@@ -257,7 +257,6 @@ const AddTransaction = () => {
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Add Transaction</h1>
           <p className="text-muted-foreground mt-1">
             Recording to: {currentAccount?.name}
           </p>
@@ -284,7 +283,7 @@ const AddTransaction = () => {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Transaction Details</CardTitle>
+          
         </CardHeader>
         <CardContent>
           <div className="space-y-6">

@@ -35,9 +35,8 @@ const AppContent = () => {
       <div className="min-h-screen bg-background">
         <AppNavigation />
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/add-transaction" element={<AddTransaction />} />
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

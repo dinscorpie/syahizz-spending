@@ -283,7 +283,6 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-primary">Finance Dashboard</h1>
               <p className="text-muted-foreground mt-1">
                 Viewing: {currentAccount?.name}
               </p>

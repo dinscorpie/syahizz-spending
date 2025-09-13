@@ -532,13 +532,13 @@ export default function Profile() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold">Profile & Family</h1>
+          
         </div>
 
         {/* Profile Section */}
         <Card>
           <CardHeader>
-            <CardTitle>My Profile</CardTitle>
+            
             <CardDescription>Manage your personal information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -572,10 +572,6 @@ export default function Profile() {
         {pendingInvitations.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Family Invitations
-              </CardTitle>
               <CardDescription>You have pending family invitations</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -619,10 +615,6 @@ export default function Profile() {
         {families.length === 0 && !loading && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Create Your First Family
-              </CardTitle>
               <CardDescription>Start by creating a family to manage shared expenses</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -650,10 +642,6 @@ export default function Profile() {
         {families.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Family Management
-              </CardTitle>
               <CardDescription>Manage your family and shared expenses</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
