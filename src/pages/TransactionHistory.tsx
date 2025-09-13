@@ -80,6 +80,7 @@ const TransactionHistory = () => {
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
+    console.log("Account changed:", currentAccount);
     if (currentAccount) {
       setCurrentPage(1); // Reset to first page when account changes
       fetchTransactions();
@@ -87,6 +88,7 @@ const TransactionHistory = () => {
   }, [currentAccount]);
 
   useEffect(() => {
+    console.log("Page changed:", currentPage);
     if (currentAccount) {
       fetchTransactions();
     }
@@ -109,12 +111,17 @@ const TransactionHistory = () => {
         query = query
           .eq("user_id", currentAccount.id)
           .is("family_id", null);
+      } else {
+        // Fallback: show all user's receipts
+        query = query.eq("user_id", currentAccount?.id || "");
       }
 
       // Apply pagination
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
       query = query.range(from, to);
+
+      console.log("Fetching receipts with query for account:", currentAccount);
 
       const { data: receiptsData, error, count } = await query;
 
@@ -125,7 +132,6 @@ const TransactionHistory = () => {
 
       console.log("Fetched receipts:", receiptsData);
       console.log("Total count:", count);
-      console.log("Current account:", currentAccount);
 
       setReceipts(receiptsData || []);
       setTotalCount(count || 0);
