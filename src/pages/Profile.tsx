@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Users, Plus, Crown, Trash2, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Profile {
   id: string;
@@ -52,7 +53,8 @@ export default function Profile() {
   const navigate = useNavigate();
   
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [family, setFamily] = useState<Family | null>(null);
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<FamilyInvitation[]>([]);
   const [sentInvitations, setSentInvitations] = useState<FamilyInvitation[]>([]);
@@ -66,10 +68,17 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       fetchProfile();
-      fetchFamily();
+      fetchFamilies();
       fetchInvitations();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (selectedFamilyId) {
+      fetchFamilyMembers(selectedFamilyId);
+      fetchInvitations();
+    }
+  }, [selectedFamilyId]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -78,75 +87,110 @@ export default function Profile() {
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error fetching profile:", error);
-    } else if (data) {
+    }
+
+    if (!data) {
+      // Create profile if missing
+      const insertRes = await supabase
+        .from("profiles")
+        .insert({ id: user.id, email: user.email ?? null, name: null })
+        .select("*")
+        .single();
+
+      if (insertRes.error) {
+        console.error("Error creating profile:", insertRes.error);
+        return;
+      }
+      setProfile(insertRes.data);
+      setName(insertRes.data.name || "");
+    } else {
       setProfile(data);
       setName(data.name || "");
     }
   };
 
-  const fetchFamily = async () => {
+  const fetchFamilies = async () => {
     if (!user) return;
-    
+
     try {
-      // Get user's family
-      const { data: familyMember, error: memberError } = await supabase
+      const { data, error } = await supabase
         .from("family_members")
         .select(`
-          family_id,
           role,
           families (*)
         `)
-        .eq("user_id", user.id)
-        .single();
+        .eq("user_id", user.id);
 
-      if (memberError) {
-        console.error("Error fetching family member:", memberError);
+      if (error) {
+        console.error("Error fetching families:", error);
+        setFamilies([]);
+        setSelectedFamilyId(null);
+        setFamilyMembers([]);
+        setFamilyName("");
         return;
       }
 
-      if (familyMember?.families) {
-        const familyData = familyMember.families as Family;
-        setFamily(familyData);
-        setFamilyName(familyData.name);
-        
-        // Get all family members
-        const { data: members, error: membersError } = await supabase
-          .from("family_members")
-          .select(`
-            id,
-            user_id,
-            role,
-            joined_at,
-            profiles!inner (
-              name,
-              email
-            )
-          `)
-          .eq("family_id", familyData.id);
+      const fams: Family[] = (data || [])
+        .map((row: any) => row.families as Family)
+        .filter(Boolean);
 
-        if (membersError) {
-          console.error("Error fetching family members:", membersError);
-        } else if (members) {
-          // Transform the data to match our interface
-          const transformedMembers: FamilyMember[] = members.map((member: any) => ({
-            id: member.id,
-            user_id: member.user_id,
-            role: member.role,
-            joined_at: member.joined_at,
-            profile_name: member.profiles?.name,
-            profile_email: member.profiles?.email,
-          }));
-          setFamilyMembers(transformedMembers);
-        }
+      setFamilies(fams);
+
+      if (fams.length > 0) {
+        const savedId = localStorage.getItem("profileSelectedFamilyId");
+        const selected = fams.find(f => f.id === savedId) || fams[0];
+        setSelectedFamilyId(selected.id);
+        setFamilyName(selected.name);
+        await fetchFamilyMembers(selected.id);
+      } else {
+        setSelectedFamilyId(null);
+        setFamilyMembers([]);
+        setFamilyName("");
       }
-    } catch (error) {
-      console.error("Error in fetchFamily:", error);
+    } catch (e) {
+      console.error("Error in fetchFamilies:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFamilyMembers = async (familyId: string) => {
+    try {
+      const { data: members, error: membersError } = await supabase
+        .from("family_members")
+        .select(`
+          id,
+          user_id,
+          role,
+          joined_at,
+          profiles!inner (
+            name,
+            email
+          )
+        `)
+        .eq("family_id", familyId);
+
+      if (membersError) {
+        console.error("Error fetching family members:", membersError);
+        setFamilyMembers([]);
+        return;
+      }
+
+      const transformed: FamilyMember[] = (members || []).map((member: any) => ({
+        id: member.id,
+        user_id: member.user_id,
+        role: member.role,
+        joined_at: member.joined_at,
+        profile_name: member.profiles?.name,
+        profile_email: member.profiles?.email,
+      }));
+      setFamilyMembers(transformed);
+    } catch (e) {
+      console.error("Error in fetchFamilyMembers:", e);
     }
   };
 
