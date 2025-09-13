@@ -34,6 +34,18 @@ interface FamilyMember {
   profile_email?: string;
 }
 
+interface FamilyInvitation {
+  id: string;
+  family_id: string;
+  invited_email: string;
+  invited_by: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+  expires_at: string;
+  family_name?: string;
+  invited_by_name?: string;
+}
+
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -42,6 +54,8 @@ export default function Profile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<FamilyInvitation[]>([]);
+  const [sentInvitations, setSentInvitations] = useState<FamilyInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   
@@ -53,6 +67,7 @@ export default function Profile() {
     if (user) {
       fetchProfile();
       fetchFamily();
+      fetchInvitations();
     }
   }, [user]);
 
@@ -185,16 +200,236 @@ export default function Profile() {
     setUpdating(false);
   };
 
-  const inviteFamilyMember = async () => {
-    if (!family || !inviteEmail.trim()) return;
+  const fetchInvitations = async () => {
+    if (!user) return;
 
-    // For now, we'll show a message about inviting members
-    // In a real app, you'd implement email invitations
-    toast({
-      title: "Feature Coming Soon",
-      description: "Family member invitations will be available soon. For now, ask them to create an account and you can add them manually.",
-    });
-    setInviteEmail("");
+    try {
+      // Fetch invitations sent to this user
+      const { data: received, error: receivedError } = await supabase
+        .from("family_invitations")
+        .select(`
+          *,
+          families (name),
+          profiles!family_invitations_invited_by_fkey (name)
+        `)
+        .eq("invited_email", user.email)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString());
+
+      if (receivedError) {
+        console.error("Error fetching received invitations:", receivedError);
+      } else {
+        const transformedReceived: FamilyInvitation[] = received?.map((inv: any) => ({
+          ...inv,
+          family_name: inv.families?.name,
+          invited_by_name: inv.profiles?.name,
+          status: inv.status as 'pending' | 'accepted' | 'declined',
+        })) || [];
+        setPendingInvitations(transformedReceived);
+      }
+
+      // Fetch invitations sent by this user (if they're family admin)
+      if (family) {
+        const { data: sent, error: sentError } = await supabase
+          .from("family_invitations")
+          .select("*")
+          .eq("family_id", family.id)
+          .eq("invited_by", user.id)
+          .eq("status", "pending");
+
+        if (sentError) {
+          console.error("Error fetching sent invitations:", sentError);
+        } else {
+          const typedSent: FamilyInvitation[] = sent?.map(inv => ({
+            ...inv,
+            status: inv.status as 'pending' | 'accepted' | 'declined',
+          })) || [];
+          setSentInvitations(typedSent);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+    }
+  };
+
+  const inviteFamilyMember = async () => {
+    if (!family || !inviteEmail.trim() || !user) return;
+
+    setUpdating(true);
+    try {
+      // Check if user is already a family member
+      const { data: existingMember } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", inviteEmail.trim())
+        .single();
+
+      if (existingMember) {
+        const { data: memberCheck } = await supabase
+          .from("family_members")
+          .select("id")
+          .eq("family_id", family.id)
+          .eq("user_id", existingMember.id)
+          .single();
+
+        if (memberCheck) {
+          toast({
+            title: "Error",
+            description: "This user is already a member of your family",
+            variant: "destructive",
+          });
+          setUpdating(false);
+          return;
+        }
+      }
+
+      // Check if invitation already exists
+      const { data: existingInvitation } = await supabase
+        .from("family_invitations")
+        .select("id")
+        .eq("family_id", family.id)
+        .eq("invited_email", inviteEmail.trim())
+        .eq("status", "pending")
+        .single();
+
+      if (existingInvitation) {
+        toast({
+          title: "Error",
+          description: "An invitation has already been sent to this email",
+          variant: "destructive",
+        });
+        setUpdating(false);
+        return;
+      }
+
+      // Create the invitation
+      const { error } = await supabase
+        .from("family_invitations")
+        .insert({
+          family_id: family.id,
+          invited_email: inviteEmail.trim(),
+          invited_by: user.id,
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to send invitation",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Invitation sent successfully",
+        });
+        setInviteEmail("");
+        fetchInvitations();
+      }
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send invitation",
+        variant: "destructive",
+      });
+    }
+    setUpdating(false);
+  };
+
+  const acceptInvitation = async (invitationId: string) => {
+    setUpdating(true);
+    try {
+      const { data, error } = await supabase.rpc("accept_family_invitation", {
+        invitation_id: invitationId,
+      });
+
+      if (error || !data) {
+        toast({
+          title: "Error",
+          description: "Failed to accept invitation",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Invitation accepted! Welcome to the family!",
+        });
+        fetchFamily();
+        fetchInvitations();
+      }
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept invitation",
+        variant: "destructive",
+      });
+    }
+    setUpdating(false);
+  };
+
+  const declineInvitation = async (invitationId: string) => {
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("family_invitations")
+        .update({ status: "declined" })
+        .eq("id", invitationId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to decline invitation",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Invitation declined",
+        });
+        fetchInvitations();
+      }
+    } catch (error) {
+      console.error("Error declining invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to decline invitation",
+        variant: "destructive",
+      });
+    }
+    setUpdating(false);
+  };
+
+  const cancelInvitation = async (invitationId: string) => {
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("family_invitations")
+        .delete()
+        .eq("id", invitationId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to cancel invitation",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Invitation cancelled",
+        });
+        fetchInvitations();
+      }
+    } catch (error) {
+      console.error("Error cancelling invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel invitation",
+        variant: "destructive",
+      });
+    }
+    setUpdating(false);
   };
 
   const getDisplayName = (member: FamilyMember) => {
@@ -251,6 +486,53 @@ export default function Profile() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Family Invitations Section */}
+        {pendingInvitations.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Family Invitations
+              </CardTitle>
+              <CardDescription>You have pending family invitations</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {pendingInvitations.map((invitation) => (
+                <div key={invitation.id} className="p-4 border rounded-lg space-y-3">
+                  <div>
+                    <p className="font-medium">
+                      Invitation to join "{invitation.family_name}"
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Invited by {invitation.invited_by_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Expires: {new Date(invitation.expires_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => acceptInvitation(invitation.id)}
+                      disabled={updating}
+                      size="sm"
+                    >
+                      Accept
+                    </Button>
+                    <Button 
+                      onClick={() => declineInvitation(invitation.id)}
+                      disabled={updating}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Family Section */}
         {family && (
@@ -323,12 +605,39 @@ export default function Profile() {
                       onChange={(e) => setInviteEmail(e.target.value)}
                       placeholder="Enter email address"
                     />
-                    <Button onClick={inviteFamilyMember} disabled={!inviteEmail.trim()}>
+                    <Button onClick={inviteFamilyMember} disabled={!inviteEmail.trim() || updating}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Invite
+                      {updating ? "Sending..." : "Invite"}
                     </Button>
                   </div>
                 </div>
+
+                {/* Sent Invitations */}
+                {sentInvitations.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Sent Invitations</h4>
+                    <div className="space-y-2">
+                      {sentInvitations.map((invitation) => (
+                        <div key={invitation.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                          <div>
+                            <p className="text-sm font-medium">{invitation.invited_email}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Sent {new Date(invitation.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Button 
+                            onClick={() => cancelInvitation(invitation.id)}
+                            disabled={updating}
+                            variant="ghost" 
+                            size="sm"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

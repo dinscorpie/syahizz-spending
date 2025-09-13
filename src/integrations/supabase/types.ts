@@ -73,6 +73,51 @@ export type Database = {
         }
         Relationships: []
       }
+      family_invitations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          family_id: string
+          id: string
+          invited_by: string
+          invited_email: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          family_id: string
+          id?: string
+          invited_by: string
+          invited_email: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          family_id?: string
+          id?: string
+          invited_by?: string
+          invited_email?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_invitations_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_members: {
         Row: {
           family_id: string | null
@@ -284,6 +329,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_family_invitation: {
+        Args: { invitation_id: string }
+        Returns: boolean
+      }
       get_user_family_ids: {
         Args: { check_user_id: string }
         Returns: string[]
