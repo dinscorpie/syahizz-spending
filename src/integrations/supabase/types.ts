@@ -52,6 +52,59 @@ export type Database = {
           },
         ]
       }
+      families: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      family_members: {
+        Row: {
+          family_id: string | null
+          id: string
+          joined_at: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          family_id?: string | null
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          family_id?: string | null
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           category_id: string | null
@@ -106,12 +159,41 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          id: string
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       receipts: {
         Row: {
+          added_by: string | null
           ai_data: Json | null
           ai_extracted: boolean | null
           created_at: string
           date: string
+          family_id: string | null
           id: string
           image_url: string | null
           notes: string | null
@@ -123,10 +205,12 @@ export type Database = {
           vendor_name: string
         }
         Insert: {
+          added_by?: string | null
           ai_data?: Json | null
           ai_extracted?: boolean | null
           created_at?: string
           date: string
+          family_id?: string | null
           id?: string
           image_url?: string | null
           notes?: string | null
@@ -138,10 +222,12 @@ export type Database = {
           vendor_name: string
         }
         Update: {
+          added_by?: string | null
           ai_data?: Json | null
           ai_extracted?: boolean | null
           created_at?: string
           date?: string
+          family_id?: string | null
           id?: string
           image_url?: string | null
           notes?: string | null
@@ -153,6 +239,13 @@ export type Database = {
           vendor_name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "receipts_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "receipts_vendor_id_vendors_id_fk"
             columns: ["vendor_id"]
