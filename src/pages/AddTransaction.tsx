@@ -3,7 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Upload, Plus, Trash2 } from 'lucide-react';
+import { CalendarIcon, Upload, Plus, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -113,58 +113,64 @@ const AddTransaction = () => {
     }
 
     setIsProcessing(true);
-    
+
+    const readAsDataURL = (file: File) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+
     try {
-      // Convert image to base64
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result as string;
-        setUploadedImage(base64);
-        
-        // Process with AI
-        const { data, error } = await supabase.functions.invoke('process-receipt', {
-          body: { image: base64 }
-        });
+      const base64 = await readAsDataURL(file);
+      setUploadedImage(base64);
 
-        if (error) throw error;
+      toast({
+        title: 'Processing receipt…',
+        description: 'Extracting details with AI',
+      });
 
-        // Auto-fill form with extracted data
-        form.setValue('vendor_name', data.vendor_name);
-        form.setValue('date', new Date(data.date));
-        form.setValue('total_amount', data.total_amount);
-        form.setValue('tax_amount', data.tax_amount || 0);
-        form.setValue('tip_amount', data.tip_amount || 0);
-        
-        // Set items
-        const mappedItems = data.items.map((item: any) => {
-          const category = categories.find(cat => 
-            cat.name.toLowerCase().includes(item.category.toLowerCase())
-          );
-          
-          return {
-            name: item.name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price,
-            category_id: category?.id || '',
-            description: item.subcategory || '',
-          };
-        });
-        
+      const { data } = await supabase.functions.invoke('process-receipt', {
+        body: { image: base64 },
+      });
+
+      if (!data) throw new Error('No data returned from AI');
+
+      form.setValue('vendor_name', data.vendor_name || '');
+      form.setValue('date', data.date ? new Date(data.date) : new Date());
+      form.setValue('total_amount', Number(data.total_amount) || 0);
+      form.setValue('tax_amount', Number(data.tax_amount) || 0);
+      form.setValue('tip_amount', Number(data.tip_amount) || 0);
+
+      const mappedItems = (data.items || []).map((item: any) => {
+        const category = categories.find(
+          (cat) => item?.category && cat.name.toLowerCase().includes(String(item.category).toLowerCase())
+        );
+
+        return {
+          name: item.name || '',
+          quantity: Number(item.quantity) || 1,
+          unit_price: Number(item.unit_price) || 0,
+          total_price: Number(item.total_price) || 0,
+          category_id: category?.id || '',
+          description: item.subcategory || '',
+        };
+      });
+
+      if (mappedItems.length) {
         form.setValue('items', mappedItems);
+      }
 
-        toast({
-          title: 'Success',
-          description: 'Receipt processed successfully! Please review and save.',
-        });
-      };
-      
-      reader.readAsDataURL(file);
-    } catch (error) {
+      toast({
+        title: 'Success',
+        description: 'Receipt processed successfully! Please review and save.',
+      });
+    } catch (error: any) {
       console.error('Error processing receipt:', error);
       toast({
         title: 'Error',
-        description: 'Failed to process receipt. Please try again.',
+        description: error?.message || 'Failed to process receipt. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -249,31 +255,37 @@ const AddTransaction = () => {
             {/* Image Upload */}
             <div className="space-y-4">
               <label className="block text-sm font-medium">Upload Receipt (Optional)</label>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="receipt-upload"
-                  disabled={isProcessing}
-                />
-                <label htmlFor="receipt-upload" className="cursor-pointer">
-                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-sm text-muted-foreground">
-                    {isProcessing ? 'Processing...' : 'Click to upload receipt image'}
-                  </p>
-                </label>
-                {uploadedImage && (
-                  <div className="mt-4">
-                    <img 
-                      src={uploadedImage} 
-                      alt="Uploaded receipt" 
-                      className="max-w-full h-48 object-contain mx-auto rounded"
-                    />
-                  </div>
-                )}
-              </div>
+                <div className="relative border-2 border-dashed border-border rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="receipt-upload"
+                    disabled={isProcessing}
+                  />
+                  <label htmlFor="receipt-upload" className="cursor-pointer">
+                    <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-sm text-muted-foreground">
+                      {isProcessing ? 'Processing...' : 'Click to upload receipt image'}
+                    </p>
+                  </label>
+                  {uploadedImage && (
+                    <div className="mt-4">
+                      <img 
+                        src={uploadedImage} 
+                        alt="Uploaded receipt" 
+                        className="max-w-full h-48 object-contain mx-auto rounded"
+                      />
+                    </div>
+                  )}
+                  {isProcessing && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <p className="mt-2 text-sm text-muted-foreground">Extracting receipt with AI...</p>
+                    </div>
+                  )}
+                </div>
             </div>
 
             {/* Form */}

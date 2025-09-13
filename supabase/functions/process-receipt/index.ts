@@ -74,7 +74,8 @@ serve(async (req) => {
             }
             
             Common categories: Food, Transportation, Shopping, Entertainment, Healthcare, Utilities, Housing, Personal Care, Education, Travel, Other.
-            Be precise with amounts and dates. If information is unclear, make reasonable assumptions.`
+            Be precise with amounts and dates. If information is unclear, make reasonable assumptions.
+            IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown, or code fences.`
           },
           {
             role: 'user',
@@ -105,9 +106,47 @@ serve(async (req) => {
 
     const result = await response.json();
     console.log('OpenAI response received');
-    
-    const extractedData = JSON.parse(result.choices[0].message.content);
-    
+
+    const content = result.choices?.[0]?.message?.content ?? '';
+    console.log('OpenAI content preview:', String(content).slice(0, 200));
+
+    function extractJson(text: string): any {
+      try {
+        return JSON.parse(text);
+      } catch {
+        const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        const candidate = fenceMatch ? fenceMatch[1] : text;
+        try {
+          return JSON.parse(candidate);
+        } catch {
+          const start = candidate.indexOf('{');
+          if (start >= 0) {
+            let depth = 0;
+            for (let i = start; i < candidate.length; i++) {
+              const ch = candidate[i];
+              if (ch === '{') depth++;
+              else if (ch === '}') {
+                depth--;
+                if (depth === 0) {
+                  const jsonSlice = candidate.slice(start, i + 1);
+                  try {
+                    return JSON.parse(jsonSlice);
+                  } catch {}
+                }
+              }
+            }
+          }
+          throw new Error('Unable to parse JSON from model response');
+        }
+      }
+    }
+
+    const extractedData = extractJson(String(content));
+
+    if (!extractedData || typeof extractedData !== 'object') {
+      throw new Error('Model did not return a valid JSON object');
+    }
+
     return new Response(JSON.stringify(extractedData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
