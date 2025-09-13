@@ -32,7 +32,7 @@ interface AccountProviderProps {
 
 export const AccountProvider = ({ children }: AccountProviderProps) => {
   const { user } = useAuth();
-  const { family, familyMembers, loading: familyLoading } = useFamilyData();
+  const { families, familyMembers, loading: familyLoading } = useFamilyData();
   const [currentAccount, setCurrentAccountState] = useState<Account | null>(null);
   const [availableAccounts, setAvailableAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,12 +48,14 @@ export const AccountProvider = ({ children }: AccountProviderProps) => {
         }
       ];
 
-      if (family) {
-        accounts.push({
-          id: `family-${family.id}`,
-          name: family.name,
-          type: 'family',
-          familyId: family.id,
+      if (families && families.length > 0) {
+        families.forEach(family => {
+          accounts.push({
+            id: `family-${family.id}`,
+            name: family.name,
+            type: 'family',
+            familyId: family.id,
+          });
         });
       }
 
@@ -73,7 +75,7 @@ export const AccountProvider = ({ children }: AccountProviderProps) => {
       }
       setLoading(false);
     }
-  }, [user, family, familyLoading, currentAccount]);
+  }, [user, families, familyLoading, currentAccount]);
 
   const setCurrentAccount = (account: Account) => {
     setCurrentAccountState(account);

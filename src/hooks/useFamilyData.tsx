@@ -23,8 +23,8 @@ interface FamilyMember {
 
 export const useFamilyData = () => {
   const { user } = useAuth();
-  const [family, setFamily] = useState<Family | null>(null);
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<Record<string, FamilyMember[]>>({});
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,8 +47,8 @@ export const useFamilyData = () => {
       
       setUserProfile(profile);
 
-      // Get user's family
-      const { data: familyMember } = await supabase
+      // Get all user's families
+      const { data: familyMemberships } = await supabase
         .from("family_members")
         .select(`
           family_id,
@@ -58,37 +58,49 @@ export const useFamilyData = () => {
             name
           )
         `)
-        .eq("user_id", user.id)
-        .single();
+        .eq("user_id", user.id);
 
-      if (familyMember?.families) {
-        const familyData = familyMember.families as Family;
-        setFamily(familyData);
+      if (familyMemberships) {
+        const userFamilies = familyMemberships
+          .filter(membership => membership.families)
+          .map(membership => membership.families as Family);
         
-        // Get all family members
-        const { data: members } = await supabase
-          .from("family_members")
-          .select(`
-            id,
-            user_id,
-            role,
-            profiles!inner (
-              name,
-              email
-            )
-          `)
-          .eq("family_id", familyData.id);
+        setFamilies(userFamilies);
+        
+        // Get members for each family
+        const allFamilyMembers: Record<string, FamilyMember[]> = {};
+        
+        for (const familyMembership of familyMemberships) {
+          if (familyMembership.families) {
+            const familyId = (familyMembership.families as Family).id;
+            
+            const { data: members } = await supabase
+              .from("family_members")
+              .select(`
+                id,
+                user_id,
+                role,
+                profiles!inner (
+                  name,
+                  email
+                )
+              `)
+              .eq("family_id", familyId);
 
-        if (members) {
-          const transformedMembers: FamilyMember[] = members.map((member: any) => ({
-            id: member.id,
-            user_id: member.user_id,
-            role: member.role,
-            profile_name: member.profiles?.name,
-            profile_email: member.profiles?.email,
-          }));
-          setFamilyMembers(transformedMembers);
+            if (members) {
+              const transformedMembers: FamilyMember[] = members.map((member: any) => ({
+                id: member.id,
+                user_id: member.user_id,
+                role: member.role,
+                profile_name: member.profiles?.name,
+                profile_email: member.profiles?.email,
+              }));
+              allFamilyMembers[familyId] = transformedMembers;
+            }
+          }
         }
+        
+        setFamilyMembers(allFamilyMembers);
       }
     } catch (error) {
       console.error("Error fetching family data:", error);
@@ -97,17 +109,18 @@ export const useFamilyData = () => {
     }
   };
 
-  const getDisplayName = (userId: string) => {
+  const getDisplayName = (userId: string, familyId?: string) => {
     if (userId === user?.id) {
       return userProfile?.name || userProfile?.email || "You";
     }
     
-    const member = familyMembers.find(m => m.user_id === userId);
+    const familyMembersList = familyId ? familyMembers[familyId] : Object.values(familyMembers).flat();
+    const member = familyMembersList?.find(m => m.user_id === userId);
     return member?.profile_name || member?.profile_email || "Unknown User";
   };
 
   return {
-    family,
+    families,
     familyMembers,
     userProfile,
     loading,

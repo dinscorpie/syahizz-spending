@@ -1,778 +1,308 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useFamilyData } from "@/hooks/useFamilyData";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { Users, Plus, Crown, Trash2, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { User, Mail, Calendar, UserCheck } from "lucide-react";
+import { format } from "date-fns";
+import { FamilyManager } from "@/components/FamilyManager";
 
-interface Profile {
-  id: string;
-  name: string | null;
-  email: string | null;
-  avatar_url: string | null;
-}
-
-interface Family {
-  id: string;
-  name: string;
-  created_at: string;
-  created_by: string;
-}
-
-interface FamilyMember {
-  id: string;
-  user_id: string;
-  role: string;
-  joined_at: string;
-  profile_name?: string;
-  profile_email?: string;
-}
-
-interface FamilyInvitation {
+interface PendingInvitation {
   id: string;
   family_id: string;
   invited_email: string;
   invited_by: string;
-  status: 'pending' | 'accepted' | 'declined';
-  created_at: string;
   expires_at: string;
-  family_name?: string;
-  invited_by_name?: string;
+  created_at: string;
+  families: {
+    name: string;
+  };
+  profiles: {
+    name: string;
+    email: string;
+  };
 }
 
-export default function Profile() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [families, setFamilies] = useState<Family[]>([]);
-  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
-  const [pendingInvitations, setPendingInvitations] = useState<FamilyInvitation[]>([]);
-  const [sentInvitations, setSentInvitations] = useState<FamilyInvitation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  
-  const [name, setName] = useState("");
-  const [familyName, setFamilyName] = useState("");
-  const [inviteEmail, setInviteEmail] = useState("");
+const Profile = () => {
+  const { user, signOut } = useAuth();
+  const { families, userProfile, loading, refetch } = useFamilyData();
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    email: "",
+  });
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [updatingProfile, setUpdatingProfile] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchFamilies();
-      fetchInvitations();
+    if (userProfile) {
+      setProfileForm({
+        name: userProfile.name || "",
+        email: userProfile.email || "",
+      });
     }
+  }, [userProfile]);
+
+  useEffect(() => {
+    fetchPendingInvitations();
   }, [user]);
 
-  useEffect(() => {
-    if (selectedFamilyId) {
-      fetchFamilyMembers(selectedFamilyId);
-      fetchInvitations();
-    }
-  }, [selectedFamilyId]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-    
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching profile:", error);
-    }
-
-    if (!data) {
-      // Create profile if missing
-      const insertRes = await supabase
-        .from("profiles")
-        .insert({ id: user.id, email: user.email ?? null, name: null })
-        .select("*")
-        .single();
-
-      if (insertRes.error) {
-        console.error("Error creating profile:", insertRes.error);
-        return;
-      }
-      setProfile(insertRes.data);
-      setName(insertRes.data.name || "");
-    } else {
-      setProfile(data);
-      setName(data.name || "");
-    }
-  };
-
-  const fetchFamilies = async () => {
+  const fetchPendingInvitations = async () => {
     if (!user) return;
 
     try {
       const { data, error } = await supabase
-        .from("family_members")
-        .select(`
-          role,
-          families (*)
-        `)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error fetching families:", error);
-        setFamilies([]);
-        setSelectedFamilyId(null);
-        setFamilyMembers([]);
-        setFamilyName("");
-        return;
-      }
-
-      const fams: Family[] = (data || [])
-        .map((row: any) => row.families as Family)
-        .filter(Boolean);
-
-      setFamilies(fams);
-
-      if (fams.length > 0) {
-        const savedId = localStorage.getItem("profileSelectedFamilyId");
-        const selected = fams.find(f => f.id === savedId) || fams[0];
-        setSelectedFamilyId(selected.id);
-        setFamilyName(selected.name);
-        await fetchFamilyMembers(selected.id);
-      } else {
-        setSelectedFamilyId(null);
-        setFamilyMembers([]);
-        setFamilyName("");
-      }
-    } catch (e) {
-      console.error("Error in fetchFamilies:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFamilyMembers = async (familyId: string) => {
-    try {
-      const { data: members, error: membersError } = await supabase
-        .from("family_members")
-        .select(`
-          id,
-          user_id,
-          role,
-          joined_at,
-          profiles!inner (
-            name,
-            email
-          )
-        `)
-        .eq("family_id", familyId);
-
-      if (membersError) {
-        console.error("Error fetching family members:", membersError);
-        setFamilyMembers([]);
-        return;
-      }
-
-      const transformed: FamilyMember[] = (members || []).map((member: any) => ({
-        id: member.id,
-        user_id: member.user_id,
-        role: member.role,
-        joined_at: member.joined_at,
-        profile_name: member.profiles?.name,
-        profile_email: member.profiles?.email,
-      }));
-      setFamilyMembers(transformed);
-    } catch (e) {
-      console.error("Error in fetchFamilyMembers:", e);
-    }
-  };
-
-  const updateProfile = async () => {
-    if (!user) return;
-    
-    setUpdating(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ name })
-      .eq("id", user.id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update profile",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-      });
-      fetchProfile();
-    }
-    setUpdating(false);
-  };
-
-  const createFamily = async () => {
-    if (!user || !familyName.trim()) return;
-    
-    setUpdating(true);
-    try {
-      // Create family and add current user as admin in one transaction (avoids RLS select issues)
-      const { data, error } = await supabase.rpc("create_family_with_admin", {
-        family_name: familyName.trim(),
-      });
-
-      if (error) throw error;
-      if (!data) throw new Error("No data returned from create_family_with_admin");
-
-      toast({
-        title: "Success",
-        description: "Family created successfully!",
-      });
-
-      // Remember and select the newly created family
-      localStorage.setItem("profileSelectedFamilyId", data.id);
-      setSelectedFamilyId(data.id);
-      setFamilyName(data.name);
-
-      await fetchFamilies();
-    } catch (error: any) {
-      console.error("Error creating family:", error);
-      toast({
-        title: "Error",
-        description: `Failed to create family: ${error.message || error}`,
-        variant: "destructive",
-      });
-    }
-    setUpdating(false);
-  };
-
-  const updateFamilyName = async () => {
-    if (!selectedFamilyId || !user) return;
-    
-    setUpdating(true);
-    const { error } = await supabase
-      .from("families")
-      .update({ name: familyName })
-      .eq("id", selectedFamilyId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update family name",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Family name updated successfully",
-      });
-      fetchFamilies();
-    }
-    setUpdating(false);
-  };
-
-  const fetchInvitations = async () => {
-    if (!user) return;
-
-    try {
-      // Fetch invitations sent to this user
-      const { data: received, error: receivedError } = await supabase
         .from("family_invitations")
         .select(`
           *,
           families (name),
-          profiles!family_invitations_invited_by_fkey (name)
+          profiles!family_invitations_invited_by_fkey (
+            name,
+            email
+          )
         `)
         .eq("invited_email", user.email)
         .eq("status", "pending")
         .gt("expires_at", new Date().toISOString());
 
-      if (receivedError) {
-        console.error("Error fetching received invitations:", receivedError);
-      } else {
-        const transformedReceived: FamilyInvitation[] = received?.map((inv: any) => ({
-          ...inv,
-          family_name: inv.families?.name,
-          invited_by_name: inv.profiles?.name,
-          status: inv.status as 'pending' | 'accepted' | 'declined',
-        })) || [];
-        setPendingInvitations(transformedReceived);
-      }
-
-      // Fetch invitations sent by this user (if they're family admin)
-      if (selectedFamilyId) {
-        const { data: sent, error: sentError } = await supabase
-          .from("family_invitations")
-          .select("*")
-          .eq("family_id", selectedFamilyId)
-          .eq("invited_by", user.id)
-          .eq("status", "pending");
-
-        if (sentError) {
-          console.error("Error fetching sent invitations:", sentError);
-        } else {
-          const typedSent: FamilyInvitation[] = sent?.map(inv => ({
-            ...inv,
-            status: inv.status as 'pending' | 'accepted' | 'declined',
-          })) || [];
-          setSentInvitations(typedSent);
-        }
-      } else {
-        setSentInvitations([]);
-      }
+      if (error) throw error;
+      setPendingInvitations(data || []);
     } catch (error) {
-      console.error("Error fetching invitations:", error);
+      console.error("Error fetching pending invitations:", error);
     }
   };
 
-  const inviteFamilyMember = async () => {
-    if (!selectedFamilyId || !inviteEmail.trim() || !user) return;
+  const handleUpdateProfile = async () => {
+    if (!user) return;
 
-    setUpdating(true);
+    setUpdatingProfile(true);
     try {
-      // Check if user is already a family member
-      const { data: existingMember } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", inviteEmail.trim())
-        .single();
-
-      if (existingMember) {
-        const { data: memberCheck } = await supabase
-          .from("family_members")
-          .select("id")
-          .eq("family_id", selectedFamilyId)
-          .eq("user_id", existingMember.id)
-          .single();
-
-        if (memberCheck) {
-          toast({
-            title: "Error",
-            description: "This user is already a member of your family",
-            variant: "destructive",
-          });
-          setUpdating(false);
-          return;
-        }
-      }
-
-      // Check if invitation already exists
-      const { data: existingInvitation } = await supabase
-        .from("family_invitations")
-        .select("id")
-        .eq("family_id", selectedFamilyId)
-        .eq("invited_email", inviteEmail.trim())
-        .eq("status", "pending")
-        .single();
-
-      if (existingInvitation) {
-        toast({
-          title: "Error",
-          description: "An invitation has already been sent to this email",
-          variant: "destructive",
-        });
-        setUpdating(false);
-        return;
-      }
-
-      // Create the invitation
       const { error } = await supabase
-        .from("family_invitations")
-        .insert({
-          family_id: selectedFamilyId,
-          invited_email: inviteEmail.trim(),
-          invited_by: user.id,
-        });
+        .from("profiles")
+        .update({
+          name: profileForm.name,
+          email: profileForm.email,
+        })
+        .eq("id", user.id);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to send invitation",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Invitation sent successfully",
-        });
-        setInviteEmail("");
-        fetchInvitations();
-      }
+      if (error) throw error;
+
+      toast.success("Profile updated successfully");
+      refetch();
     } catch (error) {
-      console.error("Error sending invitation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to send invitation",
-        variant: "destructive",
-      });
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setUpdatingProfile(false);
     }
-    setUpdating(false);
   };
 
-  const acceptInvitation = async (invitationId: string) => {
-    setUpdating(true);
+  const handleAcceptInvitation = async (invitationId: string) => {
     try {
-      const { data, error } = await supabase.rpc("accept_family_invitation", {
-        invitation_id: invitationId,
+      const { data, error } = await supabase.rpc('accept_family_invitation', {
+        invitation_id: invitationId
       });
 
-      if (error || !data) {
-        toast({
-          title: "Error",
-          description: "Failed to accept invitation",
-          variant: "destructive",
-        });
+      if (error) throw error;
+
+      if (data) {
+        toast.success("Invitation accepted successfully!");
+        fetchPendingInvitations();
+        refetch();
       } else {
-        toast({
-          title: "Success",
-          description: "Invitation accepted! Welcome to the family!",
-        });
-        fetchFamilies();
-        fetchInvitations();
+        toast.error("Failed to accept invitation. It may have expired.");
       }
     } catch (error) {
       console.error("Error accepting invitation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to accept invitation",
-        variant: "destructive",
-      });
+      toast.error("Failed to accept invitation");
     }
-    setUpdating(false);
   };
 
-  const declineInvitation = async (invitationId: string) => {
-    setUpdating(true);
+  const handleDeclineInvitation = async (invitationId: string) => {
     try {
       const { error } = await supabase
         .from("family_invitations")
         .update({ status: "declined" })
         .eq("id", invitationId);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to decline invitation",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Invitation declined",
-        });
-        fetchInvitations();
-      }
+      if (error) throw error;
+
+      toast.success("Invitation declined");
+      fetchPendingInvitations();
     } catch (error) {
       console.error("Error declining invitation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to decline invitation",
-        variant: "destructive",
-      });
+      toast.error("Failed to decline invitation");
     }
-    setUpdating(false);
-  };
-
-  const cancelInvitation = async (invitationId: string) => {
-    setUpdating(true);
-    try {
-      const { error } = await supabase
-        .from("family_invitations")
-        .delete()
-        .eq("id", invitationId);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to cancel invitation",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Invitation cancelled",
-        });
-        fetchInvitations();
-      }
-    } catch (error) {
-      console.error("Error cancelling invitation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to cancel invitation",
-        variant: "destructive",
-      });
-    }
-    setUpdating(false);
-  };
-
-  const getDisplayName = (member: FamilyMember) => {
-    return member.profile_name || member.profile_email || "Unknown User";
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="container mx-auto py-6 px-4">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          
-        </div>
+    <div className="container mx-auto py-6 px-4 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Profile & Family Management</h1>
+        <p className="text-muted-foreground">Manage your profile and family settings</p>
+      </div>
 
-        {/* Profile Section */}
-        <Card>
-          <CardHeader>
-            
-            <CardDescription>Manage your personal information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={profile?.email || ""}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name"
-              />
-            </div>
-            
-            <Button onClick={updateProfile} disabled={updating}>
-              {updating ? "Updating..." : "Update Profile"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Family Invitations Section */}
-        {pendingInvitations.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardDescription>You have pending family invitations</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {pendingInvitations.map((invitation) => (
-                <div key={invitation.id} className="p-4 border rounded-lg space-y-3">
-                  <div>
-                    <p className="font-medium">
-                      Invitation to join "{invitation.family_name}"
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Invited by {invitation.invited_by_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Expires: {new Date(invitation.expires_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => acceptInvitation(invitation.id)}
-                      disabled={updating}
-                      size="sm"
-                    >
-                      Accept
-                    </Button>
-                    <Button 
-                      onClick={() => declineInvitation(invitation.id)}
-                      disabled={updating}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Decline
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Create Family Section - Only show if no families exist */}
-        {families.length === 0 && !loading && (
-          <Card>
-            <CardHeader>
-              <CardDescription>Start by creating a family to manage shared expenses</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="newFamilyName">Family Name</Label>
-                <Input
-                  id="newFamilyName"
-                  value={familyName}
-                  onChange={(e) => setFamilyName(e.target.value)}
-                  placeholder="Enter family name (e.g., Smith Family)"
-                />
-              </div>
-              <Button 
-                onClick={createFamily} 
-                disabled={!familyName.trim() || updating}
-                className="w-full"
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="families">Families</TabsTrigger>
+          <TabsTrigger value="invitations" className="relative">
+            Invitations
+            {pendingInvitations.length > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
               >
-                {updating ? "Creating..." : "Create Family"}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+                {pendingInvitations.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Family Management Section - Show if families exist */}
-        {families.length > 0 && (
+        <TabsContent value="profile">
           <Card>
             <CardHeader>
-              <CardDescription>Manage your family and shared expenses</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Personal Information
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Family Selector */}
-              {families.length > 1 && (
-                <div className="space-y-2">
-                  <Label>Select Family</Label>
-                  <Select 
-                    value={selectedFamilyId || ""} 
-                    onValueChange={(value) => {
-                      setSelectedFamilyId(value);
-                      localStorage.setItem("profileSelectedFamilyId", value);
-                      const selected = families.find(f => f.id === value);
-                      if (selected) {
-                        setFamilyName(selected.name);
-                        fetchFamilyMembers(value);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a family" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {families.map((family) => (
-                        <SelectItem key={family.id} value={family.id}>
-                          {family.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Family Name */}
-              <div className="space-y-2">
-                <Label htmlFor="familyName">Family Name</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="familyName"
-                    value={familyName}
-                    onChange={(e) => setFamilyName(e.target.value)}
-                    placeholder="Enter family name"
-                  />
-                  <Button onClick={updateFamilyName} disabled={updating}>
-                    Update
-                  </Button>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={""} alt={userProfile?.name || ""} />
+                  <AvatarFallback className="text-lg">
+                    {userProfile?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">{userProfile?.name || "No name set"}</h3>
+                  <p className="text-muted-foreground">{userProfile?.email}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Member since {userProfile?.created_at ? format(new Date(userProfile.created_at), "MMMM yyyy") : "Unknown"}
+                  </p>
                 </div>
               </div>
 
               <Separator />
 
-              {/* Family Members */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Family Members</h3>
-                
-                <div className="space-y-2">
-                  {familyMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <p className="font-medium">{getDisplayName(member)}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {member.profile_email}
-                          </p>
-                        </div>
-                        {member.role === "admin" && (
-                          <Badge variant="secondary" className="flex items-center gap-1">
-                            <Crown className="h-3 w-3" />
-                            Admin
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      {member.user_id !== user?.id && member.role !== "admin" && (
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                <div>
+                  <Label htmlFor="name">Display Name</Label>
+                  <Input
+                    id="name"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter your display name"
+                  />
                 </div>
-
-                {/* Invite New Member */}
-                <div className="space-y-2">
-                  <Label htmlFor="inviteEmail">Invite Family Member</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="inviteEmail"
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="Enter email address"
-                    />
-                    <Button onClick={inviteFamilyMember} disabled={!inviteEmail.trim() || updating}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {updating ? "Sending..." : "Invite"}
-                    </Button>
-                  </div>
+                <div>
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter your email address"
+                  />
                 </div>
+              </div>
 
-                {/* Sent Invitations */}
-                {sentInvitations.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Sent Invitations</h4>
-                    <div className="space-y-2">
-                      {sentInvitations.map((invitation) => (
-                        <div key={invitation.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                          <div>
-                            <p className="text-sm font-medium">{invitation.invited_email}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Sent {new Date(invitation.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Button 
-                            onClick={() => cancelInvitation(invitation.id)}
-                            disabled={updating}
-                            variant="ghost" 
-                            size="sm"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="flex gap-2 pt-4">
+                <Button onClick={handleUpdateProfile} disabled={updatingProfile}>
+                  {updatingProfile ? "Updating..." : "Update Profile"}
+                </Button>
+                <Button variant="outline" onClick={signOut}>
+                  Sign Out
+                </Button>
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="families">
+          <FamilyManager />
+        </TabsContent>
+
+        <TabsContent value="invitations">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Family Invitations
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pendingInvitations.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No pending invitations
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {pendingInvitations.map((invitation) => (
+                    <Card key={invitation.id} className="border-l-4 border-l-blue-500">
+                      <CardContent className="pt-4">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2">
+                            <h4 className="font-semibold">
+                              Invitation to join "{invitation.families.name}"
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              From: {invitation.profiles?.name || invitation.profiles?.email}
+                            </p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              Expires: {format(new Date(invitation.expires_at), "MMM dd, yyyy 'at' h:mm a")}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleAcceptInvitation(invitation.id)}
+                            >
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeclineInvitation(invitation.id)}
+                            >
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};
+
+export default Profile;
