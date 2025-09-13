@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +42,26 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
+    // Initialize Supabase client to get categories
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch categories from database
+    const { data: categories, error: categoriesError } = await supabase
+      .from('categories')
+      .select('name, level')
+      .order('level', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (categoriesError) {
+      console.error('Error fetching categories:', categoriesError);
+    }
+
+    const categoryList = categories?.map(cat => 
+      cat.level === 1 ? cat.name : `${cat.name}`
+    ).join(', ') || 'Food & Dining, Transportation, Shopping, Entertainment, Healthcare, Utilities, Housing, Personal Care, Education, Travel, Business, Other';
+
     console.log('Processing receipt with OpenAI...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -54,7 +75,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a receipt processing AI. Extract all relevant information from the receipt image and return it in JSON format. For each item, categorize it appropriately (e.g., Food, Transportation, Shopping, etc.). Return the data in this exact structure:
+            content: `You are a receipt processing AI. Extract all relevant information from the receipt image and return it in JSON format. For each item, categorize it appropriately using the available categories. Return the data in this exact structure:
             {
               "vendor_name": "string",
               "date": "YYYY-MM-DD",
@@ -73,7 +94,8 @@ serve(async (req) => {
               ]
             }
             
-            Common categories: Food, Transportation, Shopping, Entertainment, Healthcare, Utilities, Housing, Personal Care, Education, Travel, Other.
+            Available categories: ${categoryList}
+            Choose the most appropriate category from the list above for each item. If an item doesn't fit any category well, use "Other".
             Be precise with amounts and dates. If information is unclear, make reasonable assumptions.
             IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown, or code fences.`
           },

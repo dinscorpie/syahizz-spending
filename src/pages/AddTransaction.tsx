@@ -514,10 +514,14 @@ const AddTransaction = () => {
                                     <SelectValue placeholder="Select category" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-background border z-50 max-h-60 overflow-y-auto">
                                   {categories.map((category) => (
-                                    <SelectItem key={category.id} value={category.id}>
-                                      {category.name}
+                                    <SelectItem 
+                                      key={category.id} 
+                                      value={category.id}
+                                      className="hover:bg-accent cursor-pointer"
+                                    >
+                                      {category.level === 2 ? `  ${category.name}` : category.name}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
