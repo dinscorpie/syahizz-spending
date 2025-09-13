@@ -190,7 +190,7 @@ const AddTransaction = () => {
           tax_amount: data.tax_amount,
           tip_amount: data.tip_amount,
           notes: data.notes,
-          user_id: 'temp-user-id', // TODO: Replace with actual user ID when auth is implemented
+          user_id: (await supabase.auth.getUser()).data.user?.id || '',
           ai_extracted: !!uploadedImage,
         })
         .select()
