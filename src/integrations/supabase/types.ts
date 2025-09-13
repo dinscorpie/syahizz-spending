@@ -333,6 +333,15 @@ export type Database = {
         Args: { invitation_id: string }
         Returns: boolean
       }
+      create_family_with_admin: {
+        Args: { family_name: string }
+        Returns: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+        }
+      }
       get_user_family_ids: {
         Args: { check_user_id: string }
         Returns: string[]

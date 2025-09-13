@@ -222,52 +222,28 @@ export default function Profile() {
   const createFamily = async () => {
     if (!user || !familyName.trim()) return;
     
-    console.log("Creating family with name:", familyName.trim());
     setUpdating(true);
     try {
-      // Create the family
-      console.log("Inserting family into database...");
-      const { data: familyData, error: familyError } = await supabase
-        .from("families")
-        .insert({
-          name: familyName.trim(),
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      // Create family and add current user as admin in one transaction (avoids RLS select issues)
+      const { data, error } = await supabase.rpc("create_family_with_admin", {
+        family_name: familyName.trim(),
+      });
 
-      if (familyError) {
-        console.error("Family creation error:", familyError);
-        throw familyError;
-      }
-
-      console.log("Family created successfully:", familyData);
-
-      // Add user as admin
-      console.log("Adding user as admin to family...");
-      const { error: memberError } = await supabase
-        .from("family_members")
-        .insert({
-          family_id: familyData.id,
-          user_id: user.id,
-          role: "admin",
-        });
-
-      if (memberError) {
-        console.error("Family member creation error:", memberError);
-        throw memberError;
-      }
-
-      console.log("User added as admin successfully");
+      if (error) throw error;
+      if (!data) throw new Error("No data returned from create_family_with_admin");
 
       toast({
         title: "Success",
         description: "Family created successfully!",
       });
 
-      console.log("Refreshing families...");
-      fetchFamilies();
-    } catch (error) {
+      // Remember and select the newly created family
+      localStorage.setItem("profileSelectedFamilyId", data.id);
+      setSelectedFamilyId(data.id);
+      setFamilyName(data.name);
+
+      await fetchFamilies();
+    } catch (error: any) {
       console.error("Error creating family:", error);
       toast({
         title: "Error",
