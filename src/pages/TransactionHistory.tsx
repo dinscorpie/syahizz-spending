@@ -276,7 +276,8 @@ const TransactionHistory = () => {
       if (currentAccount?.type === "family" && currentAccount.familyId) {
         query = query.eq("receipts.family_id", currentAccount.familyId);
       } else if (currentAccount?.type === "personal" && user?.id) {
-        query = query.eq("receipts.user_id", user.id).is("receipts.family_id", null);
+        query = query.eq("receipts.user_id", user.id)
+          .filter("receipts.family_id", "is", null);
       } else if (currentAccount?.type === "my-spending" && user?.id) {
         query = query.eq("receipts.added_by", user.id);
       }
@@ -288,11 +289,11 @@ const TransactionHistory = () => {
 
       // Apply sorting
       if (sortBy === "date") {
-        query = query.order("receipts.date", { foreignTable: "receipts", ascending: sortOrder === "asc" });
+        query = query.order("date", { foreignTable: "receipts", ascending: sortOrder === "asc" });
       } else if (sortBy === "amount") {
         query = query.order("total_price", { ascending: sortOrder === "asc" });
       } else if (sortBy === "user") {
-        query = query.order("receipts.user_id", { foreignTable: "receipts", ascending: sortOrder === "asc" });
+        query = query.order("user_id", { foreignTable: "receipts", ascending: sortOrder === "asc" });
       }
 
       // Apply pagination
