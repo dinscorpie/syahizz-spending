@@ -256,6 +256,7 @@ const TransactionHistory = () => {
     
     // Fetch items for editing
     const loaded = await fetchItems(receipt.id);
+    console.log('Loaded items for editing:', loaded);
     setEditingItems(loaded);
   };
 
@@ -673,11 +674,14 @@ const TransactionHistory = () => {
 
             {/* Items Management */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Items</h3>
+              <h3 className="text-lg font-medium">Items ({editingItems.length})</h3>
               
               {/* Existing Items */}
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {editingItems.map((item, index) => (
+                {editingItems.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No items found</p>
+                ) : (
+                  editingItems.map((item, index) => (
                   <Card key={item.id} className="p-3">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -711,18 +715,22 @@ const TransactionHistory = () => {
                         />
                       </div>
                       <Select
-                        value={item.category_id || (categories[0]?.id ?? '')}
+                        value={item.category_id || (categories.length > 0 ? categories[0].id : 'default')}
                         onValueChange={(value) => handleItemChange(index, 'category_id', value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent className="bg-popover border z-50 max-h-60 overflow-y-auto">
-                          {categories.map(category => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
+                          {categories.length === 0 ? (
+                            <SelectItem value="default">Loading categories...</SelectItem>
+                          ) : (
+                            categories.map(category => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <div className="text-sm text-muted-foreground">
@@ -730,8 +738,8 @@ const TransactionHistory = () => {
                       </div>
                     </div>
                   </Card>
-                ))}
-              </div>
+                 ))
+                )}
 
               {/* Add New Item */}
               <Card className="p-3 border-dashed">
@@ -758,18 +766,22 @@ const TransactionHistory = () => {
                     />
                   </div>
                   <Select
-                    value={newItem.category_id || ''}
+                    value={newItem.category_id}
                     onValueChange={(value) => setNewItem(prev => ({ ...prev, category_id: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border z-50 max-h-60 overflow-y-auto">
-                      {categories.map(category => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
+                      {categories.length === 0 ? (
+                        <SelectItem value="loading">Loading categories...</SelectItem>
+                      ) : (
+                        categories.map(category => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <Button 
@@ -783,6 +795,7 @@ const TransactionHistory = () => {
                 </div>
               </Card>
             </div>
+          </div>
           </div>
 
           <DialogFooter className="gap-2">
