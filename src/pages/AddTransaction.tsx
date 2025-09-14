@@ -36,6 +36,7 @@ const receiptSchema = z.object({
   total_amount: z.number().min(0, 'Total amount must be positive'),
   tax_amount: z.number().min(0).optional(),
   tip_amount: z.number().min(0).optional(),
+  service_charge: z.number().min(0).optional(),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1, 'At least one item is required'),
 });
@@ -66,6 +67,7 @@ const AddTransaction = () => {
       total_amount: 0,
       tax_amount: 0,
       tip_amount: 0,
+      service_charge: 0,
       notes: '',
       items: [{ 
         name: '', 
@@ -195,6 +197,7 @@ const AddTransaction = () => {
           total_amount: data.total_amount,
           tax_amount: data.tax_amount,
           tip_amount: data.tip_amount,
+          service_charge: data.service_charge,
           notes: data.notes,
           user_id: user?.id || '',
           family_id: currentAccount?.type === 'family' ? currentAccount.familyId : null,
@@ -363,66 +366,93 @@ const AddTransaction = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="total_amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Amount</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="tax_amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tax Amount</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="tip_amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tip Amount</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                {/* Amount Details - organized in rows of 2 */}
+                <div className="space-y-4">
+                  {/* Row 1: Total Amount and Tax Amount */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="total_amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total Amount</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="tax_amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tax Amount</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Row 2: Tip Amount and Service Charge */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="tip_amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tip Amount</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="service_charge"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Service Charge</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 {/* Items */}
@@ -483,8 +513,8 @@ const AddTransaction = () => {
                         />
                       </div>
 
-                      {/* Second row: Quantity, unit price, and total */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      {/* Second row: Quantity and Unit Price */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <FormField
                           control={form.control}
                           name={`items.${index}.quantity`}
@@ -528,7 +558,10 @@ const AddTransaction = () => {
                             </FormItem>
                           )}
                         />
-                        
+                      </div>
+
+                      {/* Third row: Total Price (centered) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <FormField
                           control={form.control}
                           name={`items.${index}.total_price`}
@@ -548,6 +581,8 @@ const AddTransaction = () => {
                             </FormItem>
                           )}
                         />
+                        {/* Empty column for alignment */}
+                        <div></div>
                       </div>
 
                       {/* Third row: Description and delete button */}

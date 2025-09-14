@@ -242,6 +242,7 @@ export type Database = {
           id: string
           image_url: string | null
           notes: string | null
+          service_charge: number | null
           tax_amount: number | null
           tip_amount: number | null
           total_amount: number
@@ -259,6 +260,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           notes?: string | null
+          service_charge?: number | null
           tax_amount?: number | null
           tip_amount?: number | null
           total_amount: number
@@ -276,6 +278,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           notes?: string | null
+          service_charge?: number | null
           tax_amount?: number | null
           tip_amount?: number | null
           total_amount?: number
