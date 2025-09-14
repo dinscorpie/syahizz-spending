@@ -21,7 +21,7 @@ interface ReceiptData {
   date: string;
   total_amount: number;
   tax_amount?: number;
-  tip_amount?: number;
+  service_charge?: number;
   items: ReceiptItem[];
 }
 
@@ -81,7 +81,7 @@ serve(async (req) => {
               "date": "YYYY-MM-DD",
               "total_amount": number,
               "tax_amount": number,
-              "tip_amount": number,
+              "service_charge": number,
               "items": [
                 {
                   "name": "string",
