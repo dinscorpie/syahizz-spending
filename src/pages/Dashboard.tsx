@@ -442,23 +442,26 @@ const Dashboard = () => {
           <CardContent>
             {dashboardData.categoryBreakdown.length > 0 ? (
               <div className="space-y-6">
-                <div className="h-80 px-4">
+                <div className="h-80 px-2">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                    <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                       <Pie
                         data={dashboardData.categoryBreakdown}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
                         label={({ category, percent }) => {
-                          // Only show labels for larger slices and shorter names
-                          if (percent > 0.08 && category.length <= 12) {
-                            return `${category.length > 8 ? category.substring(0, 8) + '...' : category}`;
+                          // Show labels for slices over 5% and truncate long names
+                          if (percent > 0.05) {
+                            if (category.length > 15) {
+                              return `${category.substring(0, 12)}...`;
+                            }
+                            return category;
                           }
                           return '';
                         }}
-                        outerRadius="60%"
-                        innerRadius="25%"
+                        outerRadius="75%"
+                        innerRadius="35%"
                         fill="#8884d8"
                         dataKey="amount"
                         stroke="transparent"
