@@ -426,13 +426,13 @@ const TransactionHistory = () => {
   if (loading) {
     return (
       <div className="container py-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <p className="text-muted-foreground mt-1">
               Viewing: {currentAccount?.name}
             </p>
           </div>
-          <AccountSelector />
+          <AccountSelector className="w-full sm:w-[200px]" />
         </div>
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
@@ -450,17 +450,17 @@ const TransactionHistory = () => {
 
   return (
     <div className="container py-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <p className="text-muted-foreground mt-1">
             Viewing: {currentAccount?.name} ({totalCount} transactions)
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-48 bg-background border z-50">
+              <SelectTrigger className="w-full sm:w-48 bg-background border">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent className="bg-popover border z-50 max-h-60 overflow-y-auto">
@@ -473,7 +473,7 @@ const TransactionHistory = () => {
               </SelectContent>
             </Select>
           </div>
-          <AccountSelector />
+          <AccountSelector className="w-full sm:w-[200px]" />
         </div>
       </div>
 
