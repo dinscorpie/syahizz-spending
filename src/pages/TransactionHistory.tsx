@@ -58,7 +58,7 @@ interface Item {
   quantity: number;
   unit_price: number;
   total_price: number;
-  category_path?: string;
+  category_id: string; // required
   receipt_id: string;
 }
 
@@ -91,7 +91,7 @@ const TransactionHistory = () => {
     name: "",
     quantity: "1",
     unit_price: "",
-    category_path: ""
+    category_id: ""
   });
 
   const ITEMS_PER_PAGE = 20;
@@ -148,7 +148,6 @@ const TransactionHistory = () => {
             id,
             name,
             category_id,
-            category_path,
             categories (
               id,
               name
@@ -210,8 +209,8 @@ const TransactionHistory = () => {
     }
   };
 
-  const fetchItems = async (receiptId: string) => {
-    if (items[receiptId]) return; // Already fetched
+  const fetchItems = async (receiptId: string): Promise<Item[]> => {
+    if (items[receiptId]) return items[receiptId]; // Already fetched
 
     try {
       const { data, error } = await supabase
@@ -226,9 +225,12 @@ const TransactionHistory = () => {
         ...prev,
         [receiptId]: data || []
       }));
+
+      return data || [];
     } catch (error) {
       console.error("Error fetching items:", error);
       toast.error("Failed to load items");
+      return [];
     }
   };
 
@@ -253,10 +255,8 @@ const TransactionHistory = () => {
     });
     
     // Fetch items for editing
-    if (!items[receipt.id]) {
-      await fetchItems(receipt.id);
-    }
-    setEditingItems(items[receipt.id] || []);
+    const loaded = await fetchItems(receipt.id);
+    setEditingItems(loaded);
   };
 
   const handleSaveEdit = async () => {
@@ -285,7 +285,7 @@ const TransactionHistory = () => {
             quantity: item.quantity,
             unit_price: item.unit_price,
             total_price: item.total_price,
-            category_path: item.category_path
+            category_id: item.category_id
           })
           .eq("id", item.id);
 
@@ -362,7 +362,7 @@ const TransactionHistory = () => {
           quantity: parseInt(newItem.quantity),
           unit_price: parseFloat(newItem.unit_price),
           total_price: totalPrice,
-          category_path: newItem.category_path || null,
+          category_id: newItem.category_id,
           receipt_id: editingReceipt.id
         })
         .select()
@@ -380,7 +380,7 @@ const TransactionHistory = () => {
         name: "",
         quantity: "1",
         unit_price: "",
-        category_path: ""
+        category_id: ""
       });
 
       toast.success("Item added successfully");
@@ -537,9 +537,9 @@ const TransactionHistory = () => {
                             <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-background rounded-md">
                               <div>
                                 <span className="font-medium">{item.name}</span>
-                                {item.category_path && (
+                                {item.category_id && (
                                   <Badge variant="outline" className="ml-2 text-xs">
-                                    {item.category_path}
+                                    {categories.find((c) => c.id === item.category_id)?.name || 'Unknown'}
                                   </Badge>
                                 )}
                               </div>
@@ -620,7 +620,7 @@ const TransactionHistory = () => {
       <Dialog open={!!editingReceipt} onOpenChange={() => {
         setEditingReceipt(null);
         setEditingItems([]);
-        setNewItem({ name: "", quantity: "1", unit_price: "", category_path: "" });
+        setNewItem({ name: "", quantity: "1", unit_price: "", category_id: "" });
       }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -711,16 +711,15 @@ const TransactionHistory = () => {
                         />
                       </div>
                       <Select
-                        value={item.category_path || 'none'}
-                        onValueChange={(value) => handleItemChange(index, 'category_path', value === 'none' ? '' : value)}
+                        value={item.category_id || (categories[0]?.id ?? '')}
+                        onValueChange={(value) => handleItemChange(index, 'category_id', value)}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select category (optional)" />
+                          <SelectValue placeholder="Select category" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No category</SelectItem>
+                        <SelectContent className="bg-popover border z-50 max-h-60 overflow-y-auto">
                           {categories.map(category => (
-                            <SelectItem key={category.id} value={category.name}>
+                            <SelectItem key={category.id} value={category.id}>
                               {category.name}
                             </SelectItem>
                           ))}
@@ -759,16 +758,15 @@ const TransactionHistory = () => {
                     />
                   </div>
                   <Select
-                    value={newItem.category_path || 'none'}
-                    onValueChange={(value) => setNewItem(prev => ({ ...prev, category_path: value === 'none' ? '' : value }))}
+                    value={newItem.category_id || ''}
+                    onValueChange={(value) => setNewItem(prev => ({ ...prev, category_id: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category (optional)" />
+                      <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No category</SelectItem>
+                    <SelectContent className="bg-popover border z-50 max-h-60 overflow-y-auto">
                       {categories.map(category => (
-                        <SelectItem key={category.id} value={category.name}>
+                        <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
                       ))}
@@ -778,7 +776,7 @@ const TransactionHistory = () => {
                     onClick={handleAddItem} 
                     className="w-full" 
                     size="sm"
-                    disabled={!newItem.name || !newItem.unit_price}
+                    disabled={!newItem.name || !newItem.unit_price || !newItem.category_id}
                   >
                     Add Item
                   </Button>
@@ -801,7 +799,7 @@ const TransactionHistory = () => {
             <Button variant="outline" onClick={() => {
               setEditingReceipt(null);
               setEditingItems([]);
-              setNewItem({ name: "", quantity: "1", unit_price: "", category_path: "" });
+              setNewItem({ name: "", quantity: "1", unit_price: "", category_id: "" });
             }}>
               Cancel
             </Button>
