@@ -139,7 +139,13 @@ const TransactionHistory = () => {
         .order("name");
 
       if (error) throw error;
-      setCategories(data || []);
+      
+      // Remove duplicates by creating a Map and converting back to array
+      const uniqueCategories = Array.from(
+        new Map((data || []).map(cat => [cat.id, cat])).values()
+      );
+      
+      setCategories(uniqueCategories);
     } catch (error) {
       console.error("Error fetching categories:", error);
     }
