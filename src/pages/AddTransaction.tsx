@@ -437,77 +437,16 @@ const AddTransaction = () => {
                   
                   {fields.map((field, index) => (
                     <Card key={field.id} className="p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                      {/* First row: Item name and category */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <FormField
                           control={form.control}
                           name={`items.${index}.name`}
                           render={({ field }) => (
-                            <FormItem className="md:col-span-2">
+                            <FormItem>
                               <FormLabel>Item Name</FormLabel>
                               <FormControl>
                                 <Input placeholder="Item name" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.quantity`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Qty</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="1"
-                                  {...field}
-                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.unit_price`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Unit Price</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="0.01"
-                                  {...field}
-                                  onChange={(e) => {
-                                    const unitPrice = parseFloat(e.target.value) || 0;
-                                    field.onChange(unitPrice);
-                                    const quantity = form.getValues(`items.${index}.quantity`);
-                                    form.setValue(`items.${index}.total_price`, unitPrice * quantity);
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.total_price`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Total</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="0.01"
-                                  {...field}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -543,13 +482,81 @@ const AddTransaction = () => {
                           )}
                         />
                       </div>
-                      
-                      <div className="mt-4 flex justify-between">
+
+                      {/* Second row: Quantity, unit price, and total */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.quantity`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Quantity</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="1"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.unit_price`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Unit Price</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  {...field}
+                                  onChange={(e) => {
+                                    const unitPrice = parseFloat(e.target.value) || 0;
+                                    field.onChange(unitPrice);
+                                    const quantity = form.getValues(`items.${index}.quantity`);
+                                    form.setValue(`items.${index}.total_price`, unitPrice * quantity);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.total_price`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Total Price</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Third row: Description and delete button */}
+                      <div className="flex items-end gap-4">
                         <FormField
                           control={form.control}
                           name={`items.${index}.description`}
                           render={({ field }) => (
-                            <FormItem className="flex-1 mr-4">
+                            <FormItem className="flex-1">
                               <FormLabel>Description (Optional)</FormLabel>
                               <FormControl>
                                 <Input placeholder="Item description" {...field} />
@@ -565,7 +572,6 @@ const AddTransaction = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => remove(index)}
-                            className="self-end"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
