@@ -117,9 +117,19 @@ const TransactionHistory = () => {
 
   // Initial load: fetch using RLS (no account filter yet)
   useEffect(() => {
+    fetchCategories();
     fetchTransactions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-fetch when category changes and clear cached items
+  useEffect(() => {
+    if (currentAccount) {
+      setItems({}); // Clear cached items to force re-fetch with new filter
+      fetchTransactions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory]);
 
   const fetchCategories = async () => {
     try {
@@ -210,14 +220,28 @@ const TransactionHistory = () => {
   };
 
   const fetchItems = async (receiptId: string): Promise<Item[]> => {
-    if (items[receiptId]) return items[receiptId]; // Already fetched
+    if (items[receiptId]) {
+      // If items are cached, filter them by selected category
+      const cachedItems = items[receiptId];
+      if (selectedCategory === "all") {
+        return cachedItems;
+      }
+      return cachedItems.filter(item => item.category_id === selectedCategory);
+    }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("items")
         .select("*")
         .eq("receipt_id", receiptId)
         .order("name");
+
+      // Apply category filter if not "all"
+      if (selectedCategory !== "all") {
+        query = query.eq("category_id", selectedCategory);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
