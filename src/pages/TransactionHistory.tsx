@@ -711,14 +711,14 @@ const TransactionHistory = () => {
                         />
                       </div>
                       <Select
-                        value={item.category_path || ''}
-                        onValueChange={(value) => handleItemChange(index, 'category_path', value)}
+                        value={item.category_path || 'none'}
+                        onValueChange={(value) => handleItemChange(index, 'category_path', value === 'none' ? '' : value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select category (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No category</SelectItem>
+                          <SelectItem value="none">No category</SelectItem>
                           {categories.map(category => (
                             <SelectItem key={category.id} value={category.name}>
                               {category.name}
@@ -759,14 +759,14 @@ const TransactionHistory = () => {
                     />
                   </div>
                   <Select
-                    value={newItem.category_path}
-                    onValueChange={(value) => setNewItem(prev => ({ ...prev, category_path: value }))}
+                    value={newItem.category_path || 'none'}
+                    onValueChange={(value) => setNewItem(prev => ({ ...prev, category_path: value === 'none' ? '' : value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No category</SelectItem>
+                      <SelectItem value="none">No category</SelectItem>
                       {categories.map(category => (
                         <SelectItem key={category.id} value={category.name}>
                           {category.name}
