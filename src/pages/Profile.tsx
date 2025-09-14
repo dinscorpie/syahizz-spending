@@ -199,7 +199,7 @@ const Profile = () => {
                   <h3 className="text-lg font-semibold">{userProfile?.name || "No name set"}</h3>
                   <p className="text-muted-foreground">{userProfile?.email}</p>
                   <p className="text-sm text-muted-foreground">
-                    Member since {userProfile?.created_at ? format(new Date(userProfile.created_at), "MMMM yyyy") : "Unknown"}
+                    Member since {userProfile?.created_at ? format(new Date(userProfile.created_at), "MMM yyyy") : "Unknown"}
                   </p>
                 </div>
               </div>
@@ -272,7 +272,7 @@ const Profile = () => {
                             </p>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Calendar className="h-4 w-4" />
-                              Expires: {format(new Date(invitation.expires_at), "MMM dd, yyyy 'at' h:mm a")}
+                              Expires: {format(new Date(invitation.expires_at), "dd MMM yyyy 'at' h:mm a")}
                             </div>
                           </div>
                           <div className="flex gap-2">

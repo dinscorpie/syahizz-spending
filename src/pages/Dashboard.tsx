@@ -191,7 +191,7 @@ const Dashboard = () => {
       // Calculate daily spending
       const dailyMap = new Map();
       receipts.forEach(receipt => {
-        const date = format(new Date(receipt.date), 'MM/dd');
+        const date = format(new Date(receipt.date), 'dd MMM');
         const existing = dailyMap.get(date) || 0;
         dailyMap.set(date, existing + Number(receipt.total_amount));
       });
@@ -332,7 +332,7 @@ const Dashboard = () => {
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {customDateRange.from && customDateRange.to ? (
                         <>
-                          {format(customDateRange.from, "MMM dd")} - {format(customDateRange.to, "MMM dd")}
+                          {format(customDateRange.from, "dd MMM")} - {format(customDateRange.to, "dd MMM")}
                         </>
                       ) : (
                         <span>Pick a date range</span>
@@ -392,7 +392,7 @@ const Dashboard = () => {
               </div>
               <div className="text-center text-xs text-muted-foreground">
                 {selectedPeriod === 'custom' 
-                  ? `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d')}`
+                  ? `${format(customDateRange.from, 'dd MMM')} - ${format(customDateRange.to, 'dd MMM')}`
                   : periodOptions.find(p => p.value === selectedPeriod)?.label
                 }
               </div>

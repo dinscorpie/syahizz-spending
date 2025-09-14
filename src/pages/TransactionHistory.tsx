@@ -796,7 +796,7 @@ const TransactionHistory = () => {
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
-                            {format(new Date(receipt.date), "MMM dd, yyyy")}
+                            {format(new Date(receipt.date), "dd MMM yyyy")}
                             <span>• By: {getDisplayName(receipt.user_id)}</span>
                           </div>
                         </div>
@@ -930,7 +930,7 @@ const TransactionHistory = () => {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {item.receipts && format(new Date(item.receipts.date), "MMM dd, yyyy")}
+                            {item.receipts && format(new Date(item.receipts.date), "dd MMM yyyy")}
                           </div>
                           <div>From: {item.receipts?.vendor_name}</div>
                           <div>By: {getDisplayName(item.receipts?.user_id)}</div>
