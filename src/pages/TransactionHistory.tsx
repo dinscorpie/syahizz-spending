@@ -142,10 +142,12 @@ const TransactionHistory = () => {
   // Initial load
   useEffect(() => {
     fetchCategories();
-    if (viewMode === "receipt") {
-      fetchTransactions();
-    } else {
-      fetchAllItems();
+    if (currentAccount) {
+      if (viewMode === "receipt") {
+        fetchTransactions();
+      } else {
+        fetchAllItems();
+      }
     }
   }, []);
 
@@ -301,6 +303,9 @@ const TransactionHistory = () => {
         query = query.order("total_price", { ascending: sortOrder === "asc" });
       } else if (sortBy === "user") {
         query = query.order("user_id", { foreignTable: "receipts", ascending: sortOrder === "asc" });
+      } else {
+        // Default sorting by item name
+        query = query.order("name", { ascending: sortOrder === "asc" });
       }
 
       // Apply pagination
