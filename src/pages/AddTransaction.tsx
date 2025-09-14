@@ -78,7 +78,7 @@ const AddTransaction = () => {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'items'
   });
@@ -165,8 +165,8 @@ const AddTransaction = () => {
         };
       });
 
-      // Always set the items array, even if empty, to replace any existing items
-      form.setValue('items', mappedItems);
+      // Replace the entire items array to sync with RHF field array
+      replace(mappedItems);
 
       toast({
         title: 'Success',
@@ -435,8 +435,8 @@ const AddTransaction = () => {
                     </Button>
                   </div>
                   
-                  {form.watch('items').map((_, index) => (
-                    <Card key={index} className="p-4">
+                  {fields.map((field, index) => (
+                    <Card key={field.id} className="p-4">
                       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                         <FormField
                           control={form.control}
