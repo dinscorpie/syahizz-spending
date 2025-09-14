@@ -31,6 +31,12 @@ interface DashboardData {
   }>;
 }
 
+interface MySpendingData {
+  totalAmount: number;
+  transactionCount: number;
+  avgTransaction: number;
+}
+
 interface DateRange {
   from: Date;
   to: Date;
@@ -44,6 +50,11 @@ const Dashboard = () => {
     categoryBreakdown: [],
     dailySpending: [],
   });
+  const [mySpendingData, setMySpendingData] = useState<MySpendingData>({
+    totalAmount: 0,
+    transactionCount: 0,
+    avgTransaction: 0,
+  });
   const [selectedPeriod, setSelectedPeriod] = useState('thisMonth');
   const [customDateRange, setCustomDateRange] = useState<DateRange>({
     from: startOfMonth(new Date()),
@@ -56,6 +67,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentAccount } = useAccountContext();
+  const { user } = useAuth();
 
   const periodOptions = [
     { value: 'thisWeek', label: 'This Week' },
@@ -86,6 +98,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (currentAccount) {
       fetchDashboardData();
+      fetchMySpendingData();
     }
   }, [selectedPeriod, customDateRange, currentAccount]);
 
@@ -214,6 +227,42 @@ const Dashboard = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchMySpendingData = async () => {
+    if (!user) return;
+    
+    try {
+      const dateRange = getDateRange();
+      const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+      const toDate = format(dateRange.to, 'yyyy-MM-dd');
+
+      // Get all receipts where the current user was the one who recorded it
+      const { data: receiptsData, error: receiptsError } = await supabase
+        .from('receipts')
+        .select('total_amount')
+        .eq('added_by', user.id)
+        .gte('date', fromDate)
+        .lte('date', toDate);
+
+      if (receiptsError) throw receiptsError;
+
+      const receipts = receiptsData || [];
+      
+      // Calculate summary statistics for my spending
+      const totalAmount = receipts.reduce((sum, receipt) => sum + Number(receipt.total_amount), 0);
+      const transactionCount = receipts.length;
+      const avgTransaction = transactionCount > 0 ? totalAmount / transactionCount : 0;
+
+      setMySpendingData({
+        totalAmount,
+        transactionCount,
+        avgTransaction,
+      });
+
+    } catch (error) {
+      console.error('Error fetching my spending data:', error);
     }
   };
 
@@ -366,7 +415,7 @@ const Dashboard = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
           {/* Primary Stats Card */}
           <Card className="hover:shadow-lg transition-all duration-300">
             <CardHeader className="pb-4">
@@ -423,6 +472,37 @@ const Dashboard = () => {
                     : 'No data'
                   }
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* My Spending Card */}
+          <Card className="hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                My Spending
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="text-center p-3 bg-blue-500/5 rounded-lg border border-blue-500/20">
+                  <div className={cn("font-bold text-blue-600 break-words", getResponsiveFontSize(formatCurrency(mySpendingData.totalAmount)))}>{formatCurrency(mySpendingData.totalAmount)}</div>
+                  <p className="text-sm text-muted-foreground">I Recorded</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-center p-2 bg-slate-500/5 rounded-lg border border-slate-500/20">
+                    <div className="text-sm font-bold text-slate-600">{mySpendingData.transactionCount}</div>
+                    <p className="text-xs text-muted-foreground">Receipts</p>
+                  </div>
+                  <div className="text-center p-2 bg-slate-500/5 rounded-lg border border-slate-500/20">
+                    <div className="text-sm font-bold text-slate-600">{formatCurrency(mySpendingData.avgTransaction)}</div>
+                    <p className="text-xs text-muted-foreground">Avg</p>
+                  </div>
+                </div>
+              </div>
+              <div className="text-center text-xs text-muted-foreground">
+                Transactions I personally recorded
               </div>
             </CardContent>
           </Card>
