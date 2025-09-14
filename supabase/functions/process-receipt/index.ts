@@ -95,7 +95,7 @@ serve(async (req) => {
             }
             
             Available categories: ${categoryList}
-            Choose the most appropriate category from the list above for each item. If an item doesn't fit any category well, use "Other".
+            CRITICAL: You MUST assign a category to EVERY item. Choose the most appropriate category from the list above for each item. If an item doesn't fit any category well, use "Other". Never leave category field empty or null.
             Be precise with amounts and dates. If information is unclear, make reasonable assumptions.
             IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown, or code fences.`
           },
