@@ -165,9 +165,8 @@ const AddTransaction = () => {
         };
       });
 
-      if (mappedItems.length) {
-        form.setValue('items', mappedItems);
-      }
+      // Always set the items array, even if empty, to replace any existing items
+      form.setValue('items', mappedItems);
 
       toast({
         title: 'Success',
