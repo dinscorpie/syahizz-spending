@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAccountContext } from "@/hooks/useAccountContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useFamilyData } from "@/hooks/useFamilyData";
 import { AccountSelector } from "@/components/AccountSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -14,7 +15,12 @@ import {
   Trash2,
   Calendar,
   ChevronLeft,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Filter,
+  ArrowUp,
+  ArrowDown,
+  List,
+  Receipt as ReceiptIcon
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -39,7 +45,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Filter } from "lucide-react";
 import { toast } from "sonner";
 
 interface Receipt {
@@ -58,8 +63,9 @@ interface Item {
   quantity: number;
   unit_price: number;
   total_price: number;
-  category_id: string; // required
+  category_id: string;
   receipt_id: string;
+  receipts?: Receipt;
 }
 
 interface Category {
@@ -70,8 +76,10 @@ interface Category {
 const TransactionHistory = () => {
   const { currentAccount } = useAccountContext();
   const { user } = useAuth();
+  const { getDisplayName } = useFamilyData();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [items, setItems] = useState<Record<string, Item[]>>({});
+  const [allItems, setAllItems] = useState<Item[]>([]);
   const [expandedReceipts, setExpandedReceipts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
@@ -80,6 +88,9 @@ const TransactionHistory = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"date" | "amount" | "user">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [viewMode, setViewMode] = useState<"receipt" | "item">("receipt");
   const [editForm, setEditForm] = useState({
     vendor_name: "",
     total_amount: "",
@@ -101,35 +112,47 @@ const TransactionHistory = () => {
   }, []);
 
   useEffect(() => {
-    console.log("Account or category changed:", currentAccount, selectedCategory);
     if (currentAccount) {
-      setCurrentPage(1); // Reset to first page when account or category changes
-      fetchTransactions();
+      setCurrentPage(1);
+      if (viewMode === "receipt") {
+        fetchTransactions();
+      } else {
+        fetchAllItems();
+      }
     }
-  }, [currentAccount, selectedCategory]);
+  }, [currentAccount, selectedCategory, sortBy, sortOrder, viewMode]);
 
   useEffect(() => {
-    console.log("Page changed:", currentPage);
     if (currentAccount) {
-      fetchTransactions();
+      if (viewMode === "receipt") {
+        fetchTransactions();
+      } else {
+        fetchAllItems();
+      }
     }
   }, [currentPage]);
 
-  // Initial load: fetch using RLS (no account filter yet)
+  // Initial load
   useEffect(() => {
     fetchCategories();
-    fetchTransactions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (viewMode === "receipt") {
+      fetchTransactions();
+    } else {
+      fetchAllItems();
+    }
   }, []);
 
-  // Re-fetch when category changes and clear cached items
+  // Clear cache when filters change
   useEffect(() => {
     if (currentAccount) {
-      setItems({}); // Clear cached items to force re-fetch with new filter
-      fetchTransactions();
+      setItems({});
+      if (viewMode === "receipt") {
+        fetchTransactions();
+      } else {
+        fetchAllItems();
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory]);
+  }, [selectedCategory, viewMode]);
 
   const fetchCategories = async () => {
     try {
@@ -149,7 +172,6 @@ const TransactionHistory = () => {
     try {
       setLoading(true);
       
-      // Build the base query with joins to get category information
       let query = supabase
         .from("receipts")
         .select(`
@@ -163,10 +185,18 @@ const TransactionHistory = () => {
               name
             )
           )
-        `, { count: 'exact' })
-        .order("date", { ascending: false });
+        `, { count: 'exact' });
 
-      // Apply account filtering (only when we know the current account)
+      // Apply sorting
+      if (sortBy === "date") {
+        query = query.order("date", { ascending: sortOrder === "asc" });
+      } else if (sortBy === "amount") {
+        query = query.order("total_amount", { ascending: sortOrder === "asc" });
+      } else if (sortBy === "user") {
+        query = query.order("user_id", { ascending: sortOrder === "asc" });
+      }
+
+      // Apply account filtering
       if (currentAccount?.type === "family" && currentAccount.familyId) {
         query = query.eq("family_id", currentAccount.familyId);
       } else if (currentAccount?.type === "personal" && user?.id) {
@@ -192,7 +222,7 @@ const TransactionHistory = () => {
         throw error;
       }
 
-      // Process receipts to remove duplicates (due to joins)
+      // Process receipts to remove duplicates
       const uniqueReceipts = receiptsData?.reduce((acc: Receipt[], receipt: any) => {
         const existingIndex = acc.findIndex(r => r.id === receipt.id);
         if (existingIndex === -1) {
@@ -219,9 +249,76 @@ const TransactionHistory = () => {
     }
   };
 
+  const fetchAllItems = async () => {
+    try {
+      setLoading(true);
+      
+      let query = supabase
+        .from("items")
+        .select(`
+          *,
+          receipts!inner (
+            id,
+            vendor_name,
+            total_amount,
+            date,
+            user_id,
+            family_id,
+            added_by
+          ),
+          categories (
+            id,
+            name
+          )
+        `, { count: 'exact' });
+
+      // Apply account filtering
+      if (currentAccount?.type === "family" && currentAccount.familyId) {
+        query = query.eq("receipts.family_id", currentAccount.familyId);
+      } else if (currentAccount?.type === "personal" && user?.id) {
+        query = query.eq("receipts.user_id", user.id).is("receipts.family_id", null);
+      } else if (currentAccount?.type === "my-spending" && user?.id) {
+        query = query.eq("receipts.added_by", user.id);
+      }
+
+      // Apply category filtering
+      if (selectedCategory !== "all") {
+        query = query.eq("category_id", selectedCategory);
+      }
+
+      // Apply sorting
+      if (sortBy === "date") {
+        query = query.order("receipts.date", { foreignTable: "receipts", ascending: sortOrder === "asc" });
+      } else if (sortBy === "amount") {
+        query = query.order("total_price", { ascending: sortOrder === "asc" });
+      } else if (sortBy === "user") {
+        query = query.order("receipts.user_id", { foreignTable: "receipts", ascending: sortOrder === "asc" });
+      }
+
+      // Apply pagination
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to);
+
+      const { data: itemsData, error, count } = await query;
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      setAllItems(itemsData || []);
+      setTotalCount(count || 0);
+    } catch (error) {
+      console.error("Error fetching items:", error);
+      toast.error("Failed to load items");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchItems = async (receiptId: string): Promise<Item[]> => {
     if (items[receiptId]) {
-      // If items are cached, filter them by selected category
       const cachedItems = items[receiptId];
       if (selectedCategory === "all") {
         return cachedItems;
@@ -236,7 +333,6 @@ const TransactionHistory = () => {
         .eq("receipt_id", receiptId)
         .order("name");
 
-      // Apply category filter if not "all"
       if (selectedCategory !== "all") {
         query = query.eq("category_id", selectedCategory);
       }
@@ -278,9 +374,7 @@ const TransactionHistory = () => {
       notes: receipt.notes || ""
     });
     
-    // Fetch items for editing
     const loaded = await fetchItems(receipt.id);
-    console.log('Loaded items for editing:', loaded);
     setEditingItems(loaded);
   };
 
@@ -288,7 +382,6 @@ const TransactionHistory = () => {
     if (!editingReceipt) return;
 
     try {
-      // Update receipt
       const { error: receiptError } = await supabase
         .from("receipts")
         .update({
@@ -301,7 +394,6 @@ const TransactionHistory = () => {
 
       if (receiptError) throw receiptError;
 
-      // Update items
       for (const item of editingItems) {
         const { error: itemError } = await supabase
           .from("items")
@@ -317,7 +409,6 @@ const TransactionHistory = () => {
         if (itemError) throw itemError;
       }
 
-      // Update local state
       setReceipts(prev => prev.map(receipt => 
         receipt.id === editingReceipt.id 
           ? { ...receipt, ...editForm, total_amount: parseFloat(editForm.total_amount) }
@@ -419,13 +510,11 @@ const TransactionHistory = () => {
     if (!deleteReceiptId) return;
 
     try {
-      // Delete items first (foreign key constraint)
       await supabase
         .from("items")
         .delete()
         .eq("receipt_id", deleteReceiptId);
 
-      // Then delete receipt
       const { error } = await supabase
         .from("receipts")
         .delete()
@@ -480,10 +569,55 @@ const TransactionHistory = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <p className="text-muted-foreground mt-1">
-            Viewing: {currentAccount?.name} ({totalCount} transactions)
+            Viewing: {currentAccount?.name} ({totalCount} {viewMode === "receipt" ? "transactions" : "items"})
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
+            <Button
+              variant={viewMode === "receipt" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("receipt")}
+              className="h-8 px-3"
+            >
+              <ReceiptIcon className="h-4 w-4 mr-1" />
+              Receipts
+            </Button>
+            <Button
+              variant={viewMode === "item" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("item")}
+              className="h-8 px-3"
+            >
+              <List className="h-4 w-4 mr-1" />
+              Items
+            </Button>
+          </div>
+
+          {/* Sort Controls */}
+          <div className="flex items-center gap-2">
+            <Select value={sortBy} onValueChange={(value: "date" | "amount" | "user") => setSortBy(value)}>
+              <SelectTrigger className="w-32 bg-background border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border z-50">
+                <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="amount">Amount</SelectItem>
+                <SelectItem value="user">User</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+              className="px-2"
+            >
+              {sortOrder === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {/* Category Filter */}
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -504,141 +638,238 @@ const TransactionHistory = () => {
         </div>
       </div>
 
-      {receipts.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-8">
-            <p className="text-muted-foreground">No transactions found for this account</p>
-          </CardContent>
-        </Card>
+      {viewMode === "receipt" ? (
+        receipts.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">No transactions found for this account</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="space-y-3">
+              {receipts.map((receipt) => (
+                <Card key={receipt.id} className="overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                      <div 
+                        className="flex items-center gap-3 flex-1 cursor-pointer"
+                        onClick={() => toggleExpanded(receipt.id)}
+                      >
+                        {expandedReceipts.has(receipt.id) ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-medium">{receipt.vendor_name}</h3>
+                            <Badge variant="secondary" className="text-xs">
+                              RM{receipt.total_amount.toFixed(2)}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                            <Calendar className="h-3 w-3" />
+                            {format(new Date(receipt.date), "MMM dd, yyyy")}
+                            <span>• By: {getDisplayName(receipt.user_id)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(receipt);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {expandedReceipts.has(receipt.id) && (
+                      <div className="border-t bg-muted/20 p-4">
+                        {items[receipt.id]?.length > 0 ? (
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm text-muted-foreground mb-3">Items:</h4>
+                            {items[receipt.id].map((item) => (
+                              <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-background rounded-md">
+                                <div>
+                                  <span className="font-medium">{item.name}</span>
+                                  {item.category_id && (
+                                    <Badge variant="outline" className="ml-2 text-xs">
+                                      {categories.find((c) => c.id === item.category_id)?.name || 'Unknown'}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm">
+                                    {item.quantity} × RM{item.unit_price.toFixed(2)}
+                                  </div>
+                                  <div className="font-medium">RM{item.total_price.toFixed(2)}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No items found</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRightIcon className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </>
+        )
       ) : (
-        <>
-          <div className="space-y-3">
-            {receipts.map((receipt) => (
-              <Card key={receipt.id} className="overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-                    <div 
-                      className="flex items-center gap-3 flex-1 cursor-pointer"
-                      onClick={() => toggleExpanded(receipt.id)}
-                    >
-                      {expandedReceipts.has(receipt.id) ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
+        // Item View
+        allItems.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">No items found for this account</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="space-y-3">
+              {allItems.map((item) => (
+                <Card key={item.id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-medium">{receipt.vendor_name}</h3>
-                           <Badge variant="secondary" className="text-xs">
-                            RM{receipt.total_amount.toFixed(2)}
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-medium">{item.name}</h3>
+                          <Badge variant="outline" className="text-xs">
+                            {categories.find((c) => c.id === item.category_id)?.name || 'Unknown'}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            RM{item.total_price.toFixed(2)}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(receipt.date), "MMM dd, yyyy")}
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {item.receipts && format(new Date(item.receipts.date), "MMM dd, yyyy")}
+                          </div>
+                          <div>From: {item.receipts?.vendor_name}</div>
+                          <div>By: {getDisplayName(item.receipts?.user_id)}</div>
+                          <div>{item.quantity} × RM{item.unit_price.toFixed(2)}</div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(receipt);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {expandedReceipts.has(receipt.id) && (
-                    <div className="border-t bg-muted/20 p-4">
-                      {items[receipt.id]?.length > 0 ? (
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm text-muted-foreground mb-3">Items:</h4>
-                          {items[receipt.id].map((item) => (
-                            <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-background rounded-md">
-                              <div>
-                                <span className="font-medium">{item.name}</span>
-                                {item.category_id && (
-                                  <Badge variant="outline" className="ml-2 text-xs">
-                                    {categories.find((c) => c.id === item.category_id)?.name || 'Unknown'}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                 <div className="text-sm">
-                                   {item.quantity} × RM{item.unit_price.toFixed(2)}
-                                 </div>
-                                 <div className="font-medium">RM{item.total_price.toFixed(2)}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No items found</p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-              </Button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className="w-8 h-8 p-0"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-                <ChevronRightIcon className="h-4 w-4 ml-1" />
-              </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
-        </>
+
+            {/* Pagination for Item View */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRightIcon className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </>
+        )
       )}
 
       {/* Edit Dialog */}
@@ -656,7 +887,6 @@ const TransactionHistory = () => {
           </DialogHeader>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Receipt Details */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Receipt Details</h3>
               <div>
@@ -696,11 +926,9 @@ const TransactionHistory = () => {
               </div>
             </div>
 
-            {/* Items Management */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Items ({editingItems.length})</h3>
               
-              {/* Existing Items */}
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {editingItems.length === 0 ? (
                   <p className="text-muted-foreground text-sm">No items found</p>
@@ -765,7 +993,6 @@ const TransactionHistory = () => {
                  ))
                 )}
 
-              {/* Add New Item */}
               <Card className="p-3 border-dashed">
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Add New Item</h4>
