@@ -364,30 +364,10 @@ const AddTransaction = () => {
                   />
                 </div>
 
-                {/* Amount Details - organized in rows of 2 */}
+                {/* Amount Details - organized with total amount prominent */}
                 <div className="space-y-4">
-                  {/* Row 1: Total Amount and Tax Amount */}
+                  {/* Row 1: Tax Amount and Service Charge */}
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="total_amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Total Amount</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
                     <FormField
                       control={form.control}
                       name="tax_amount"
@@ -407,10 +387,7 @@ const AddTransaction = () => {
                         </FormItem>
                       )}
                     />
-                  </div>
-
-                  {/* Row 2: Service Charge (single field) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
                     <FormField
                       control={form.control}
                       name="service_charge"
@@ -430,8 +407,29 @@ const AddTransaction = () => {
                         </FormItem>
                       )}
                     />
-                    {/* Empty column */}
-                    <div></div>
+                  </div>
+
+                  {/* Row 2: Total Amount (prominent, full width) */}
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="total_amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total Amount</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
 
