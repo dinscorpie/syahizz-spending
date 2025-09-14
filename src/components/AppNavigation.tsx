@@ -21,24 +21,26 @@ const AppNavigation = () => {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
-        <NavigationMenu>
-          <NavigationMenuList>
-            {navItems.map((item) => (
-              <NavigationMenuItem key={item.href}>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to={item.href}
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      location.pathname === item.href && "bg-accent text-accent-foreground"
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            ))}
-          </NavigationMenuList>
+        <NavigationMenu className="w-full">
+          <div className="w-full overflow-x-auto">
+            <NavigationMenuList className="min-w-max">
+              {navItems.map((item) => (
+                <NavigationMenuItem key={item.href}>
+                  <NavigationMenuLink asChild>
+                    <Link
+                      to={item.href}
+                      className={cn(
+                        navigationMenuTriggerStyle(),
+                        location.pathname === item.href && "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              ))}
+            </NavigationMenuList>
+          </div>
         </NavigationMenu>
       </div>
     </header>
