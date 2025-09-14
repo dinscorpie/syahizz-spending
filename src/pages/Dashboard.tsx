@@ -231,6 +231,13 @@ const Dashboard = () => {
     }).format(amount);
   };
 
+  const getResponsiveFontSize = (text: string) => {
+    const length = text.length;
+    if (length > 12) return "text-lg";
+    if (length > 8) return "text-xl";
+    return "text-2xl";
+  };
+
   const renderCustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -381,11 +388,11 @@ const Dashboard = () => {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-3 bg-primary/5 rounded-lg border border-primary/20">
-                  <div className="text-2xl font-bold text-primary">{formatCurrency(dashboardData.totalAmount)}</div>
+                  <div className={cn("font-bold text-primary break-words", getResponsiveFontSize(formatCurrency(dashboardData.totalAmount)))}>{formatCurrency(dashboardData.totalAmount)}</div>
                   <p className="text-sm text-muted-foreground">Total Spent</p>
                 </div>
                 <div className="text-center p-3 bg-green-500/5 rounded-lg border border-green-500/20">
-                  <div className="text-2xl font-bold text-green-600">{formatCurrency(dashboardData.avgTransaction)}</div>
+                  <div className={cn("font-bold text-green-600 break-words", getResponsiveFontSize(formatCurrency(dashboardData.avgTransaction)))}>{formatCurrency(dashboardData.avgTransaction)}</div>
                   <p className="text-sm text-muted-foreground">Avg per Receipt</p>
                 </div>
               </div>
@@ -409,11 +416,11 @@ const Dashboard = () => {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-3 bg-orange-500/5 rounded-lg border border-orange-500/20">
-                  <div className="text-2xl font-bold text-orange-600">{dashboardData.transactionCount}</div>
+                  <div className={cn("font-bold text-orange-600 break-words", getResponsiveFontSize(dashboardData.transactionCount.toString()))}>{dashboardData.transactionCount}</div>
                   <p className="text-sm text-muted-foreground">Receipts</p>
                 </div>
                 <div className="text-center p-3 bg-purple-500/5 rounded-lg border border-purple-500/20">
-                  <div className="text-lg font-bold text-purple-600">
+                  <div className="text-sm sm:text-base font-bold text-purple-600 break-words px-1">
                     {dashboardData.categoryBreakdown[0]?.category || 'None'}
                   </div>
                   <p className="text-sm text-muted-foreground">Top Category</p>
