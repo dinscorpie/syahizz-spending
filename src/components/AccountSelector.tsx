@@ -38,7 +38,8 @@ export const AccountSelector = ({ className, placeholder = "Select account..." }
             <div className="flex items-center">
               <div className={cn(
                 "w-2 h-2 rounded-full mr-2",
-                currentAccount.type === 'personal' ? "bg-blue-500" : "bg-green-500"
+                currentAccount.type === 'personal' ? "bg-blue-500" : 
+                currentAccount.type === 'family' ? "bg-green-500" : "bg-purple-500"
               )} />
               {currentAccount.name}
             </div>
@@ -68,13 +69,14 @@ export const AccountSelector = ({ className, placeholder = "Select account..." }
                       currentAccount?.id === account.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex items-center">
-                    <div className={cn(
-                      "w-2 h-2 rounded-full mr-2",
-                      account.type === 'personal' ? "bg-blue-500" : "bg-green-500"
-                    )} />
-                    {account.name}
-                  </div>
+                   <div className="flex items-center">
+                     <div className={cn(
+                       "w-2 h-2 rounded-full mr-2",
+                       account.type === 'personal' ? "bg-blue-500" : 
+                       account.type === 'family' ? "bg-green-500" : "bg-purple-500"
+                     )} />
+                     {account.name}
+                   </div>
                 </CommandItem>
               ))}
             </CommandGroup>

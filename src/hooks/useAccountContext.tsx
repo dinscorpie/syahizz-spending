@@ -5,7 +5,7 @@ import { useFamilyData } from './useFamilyData';
 export interface Account {
   id: string;
   name: string;
-  type: 'personal' | 'family';
+  type: 'personal' | 'family' | 'my-spending';
   familyId?: string;
 }
 
@@ -45,6 +45,11 @@ export const AccountProvider = ({ children }: AccountProviderProps) => {
           id: `personal-${user.id}`,
           name: 'Personal Account',
           type: 'personal',
+        },
+        {
+          id: `my-spending-${user.id}`,
+          name: 'My Spending',
+          type: 'my-spending',
         }
       ];
 
