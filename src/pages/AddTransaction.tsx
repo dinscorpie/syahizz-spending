@@ -369,7 +369,7 @@ const AddTransaction = () => {
                 {/* Amount Details - organized in rows of 2 */}
                 <div className="space-y-4">
                   {/* Row 1: Total Amount and Tax Amount */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="total_amount"
@@ -412,7 +412,7 @@ const AddTransaction = () => {
                   </div>
 
                   {/* Row 2: Tip Amount and Service Charge */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="tip_amount"
@@ -514,7 +514,7 @@ const AddTransaction = () => {
                       </div>
 
                       {/* Second row: Quantity and Unit Price */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="grid grid-cols-2 gap-4 mb-4">
                         <FormField
                           control={form.control}
                           name={`items.${index}.quantity`}
@@ -561,7 +561,7 @@ const AddTransaction = () => {
                       </div>
 
                       {/* Third row: Total Price (centered) */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="grid grid-cols-2 gap-4 mb-4">
                         <FormField
                           control={form.control}
                           name={`items.${index}.total_price`}
