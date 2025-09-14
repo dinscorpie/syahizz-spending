@@ -162,6 +162,8 @@ const TransactionHistory = () => {
         query = query.eq("family_id", currentAccount.familyId);
       } else if (currentAccount?.type === "personal" && user?.id) {
         query = query.eq("user_id", user.id).is("family_id", null);
+      } else if (currentAccount?.type === "my-spending" && user?.id) {
+        query = query.eq("added_by", user.id);
       }
 
       // Apply category filtering
