@@ -95,8 +95,14 @@ serve(async (req) => {
             }
             
             Available categories: ${categoryList}
-            CRITICAL: You MUST assign a category to EVERY item. Choose the most appropriate category from the list above for each item. If an item doesn't fit any category well, use "Other". Never leave category field empty or null.
-            Be precise with amounts and dates. If information is unclear, make reasonable assumptions.
+            
+            CRITICAL REQUIREMENTS:
+            - You MUST extract ALL items from the receipt. The items array CANNOT be empty.
+            - Every receipt has at least one item - find and extract ALL items listed.
+            - You MUST assign a category to EVERY item. Choose the most appropriate category from the list above for each item. If an item doesn't fit any category well, use "Other". Never leave category field empty or null.
+            - If you cannot clearly see individual items, extract what you can see or create reasonable line items based on the total amount.
+            - Be precise with amounts and dates. If information is unclear, make reasonable assumptions.
+            
             IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown, or code fences.`
           },
           {
@@ -168,6 +174,20 @@ serve(async (req) => {
     if (!extractedData || typeof extractedData !== 'object') {
       throw new Error('Model did not return a valid JSON object');
     }
+
+    // Validate that items were extracted
+    if (!extractedData.items || !Array.isArray(extractedData.items) || extractedData.items.length === 0) {
+      throw new Error('No items were extracted from the receipt. Items are required.');
+    }
+
+    // Validate that each item has a category
+    for (const item of extractedData.items) {
+      if (!item.category || item.category.trim() === '') {
+        throw new Error('All items must have a category assigned');
+      }
+    }
+
+    console.log(`Successfully extracted ${extractedData.items.length} items from receipt`);
 
     return new Response(JSON.stringify(extractedData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
