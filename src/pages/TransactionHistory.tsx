@@ -83,6 +83,7 @@ const TransactionHistory = () => {
   const [expandedReceipts, setExpandedReceipts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [deleteReceiptId, setDeleteReceiptId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -96,6 +97,12 @@ const TransactionHistory = () => {
     total_amount: "",
     date: "",
     notes: ""
+  });
+  const [editItemForm, setEditItemForm] = useState({
+    name: "",
+    quantity: "",
+    unit_price: "",
+    category_id: ""
   });
   const [editingItems, setEditingItems] = useState<Item[]>([]);
   const [newItem, setNewItem] = useState({
@@ -366,6 +373,121 @@ const TransactionHistory = () => {
     setExpandedReceipts(newExpanded);
   };
 
+  const handleEditItem = (item: Item) => {
+    setEditingItem(item);
+    setEditItemForm({
+      name: item.name,
+      quantity: item.quantity.toString(),
+      unit_price: item.unit_price.toString(),
+      category_id: item.category_id
+    });
+  };
+
+  const recalculateReceiptTotal = async (receiptId: string) => {
+    try {
+      // Get all items for this receipt
+      const { data: allItems, error } = await supabase
+        .from("items")
+        .select("total_price")
+        .eq("receipt_id", receiptId);
+
+      if (error) throw error;
+
+      // Calculate new total
+      const newTotal = (allItems || []).reduce((sum, item) => sum + item.total_price, 0);
+
+      // Update receipt total
+      const { error: updateError } = await supabase
+        .from("receipts")
+        .update({ total_amount: newTotal })
+        .eq("id", receiptId);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setReceipts(prev => prev.map(receipt => 
+        receipt.id === receiptId 
+          ? { ...receipt, total_amount: newTotal }
+          : receipt
+      ));
+
+      return newTotal;
+    } catch (error) {
+      console.error("Error recalculating receipt total:", error);
+      throw error;
+    }
+  };
+
+  const handleSaveItemEdit = async () => {
+    if (!editingItem) return;
+
+    try {
+      const totalPrice = parseInt(editItemForm.quantity) * parseFloat(editItemForm.unit_price);
+      
+      // Update item
+      const { error: itemError } = await supabase
+        .from("items")
+        .update({
+          name: editItemForm.name,
+          quantity: parseInt(editItemForm.quantity),
+          unit_price: parseFloat(editItemForm.unit_price),
+          total_price: totalPrice,
+          category_id: editItemForm.category_id
+        })
+        .eq("id", editingItem.id);
+
+      if (itemError) throw itemError;
+
+      // Recalculate receipt total
+      const receiptId = editingItem.receipts?.id || editingItem.receipt_id;
+      if (receiptId) {
+        await recalculateReceiptTotal(receiptId);
+      }
+
+      // Update local state for items view
+      if (viewMode === "item") {
+        setAllItems(prev => prev.map(item => 
+          item.id === editingItem.id 
+            ? { 
+                ...item, 
+                name: editItemForm.name,
+                quantity: parseInt(editItemForm.quantity),
+                unit_price: parseFloat(editItemForm.unit_price),
+                total_price: totalPrice,
+                category_id: editItemForm.category_id
+              }
+            : item
+        ));
+      }
+
+      // Update cached items for receipt view
+      setItems(prev => {
+        const updatedItems = { ...prev };
+        Object.keys(updatedItems).forEach(receiptId => {
+          updatedItems[receiptId] = updatedItems[receiptId].map(item =>
+            item.id === editingItem.id
+              ? {
+                  ...item,
+                  name: editItemForm.name,
+                  quantity: parseInt(editItemForm.quantity),
+                  unit_price: parseFloat(editItemForm.unit_price),
+                  total_price: totalPrice,
+                  category_id: editItemForm.category_id
+                }
+              : item
+          );
+        });
+        return updatedItems;
+      });
+
+      setEditingItem(null);
+      toast.success("Item updated successfully and receipt total recalculated");
+    } catch (error) {
+      console.error("Error updating item:", error);
+      toast.error("Failed to update item");
+    }
+  };
+
   const handleEdit = async (receipt: Receipt) => {
     setEditingReceipt(receipt);
     setEditForm({
@@ -410,9 +532,12 @@ const TransactionHistory = () => {
         if (itemError) throw itemError;
       }
 
+      // Recalculate receipt total based on actual items
+      const newTotal = await recalculateReceiptTotal(editingReceipt.id);
+
       setReceipts(prev => prev.map(receipt => 
         receipt.id === editingReceipt.id 
-          ? { ...receipt, ...editForm, total_amount: parseFloat(editForm.total_amount) }
+          ? { ...receipt, ...editForm, total_amount: newTotal }
           : receipt
       ));
 
@@ -423,7 +548,7 @@ const TransactionHistory = () => {
 
       setEditingReceipt(null);
       setEditingItems([]);
-      toast.success("Receipt and items updated successfully");
+      toast.success("Receipt and items updated successfully with recalculated total");
     } catch (error) {
       console.error("Error updating receipt:", error);
       toast.error("Failed to update receipt");
@@ -812,6 +937,15 @@ const TransactionHistory = () => {
                           <div>{item.quantity} × RM{item.unit_price.toFixed(2)}</div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditItem(item)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1069,6 +1203,101 @@ const TransactionHistory = () => {
               Cancel
             </Button>
             <Button onClick={handleSaveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={!!editingItem} onOpenChange={() => {
+        setEditingItem(null);
+        setEditItemForm({ name: "", quantity: "", unit_price: "", category_id: "" });
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Item</DialogTitle>
+            <DialogDescription>
+              Update the item details
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="item_name">Item Name</Label>
+              <Input
+                id="item_name"
+                value={editItemForm.name}
+                onChange={(e) => setEditItemForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Item name"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="item_quantity">Quantity</Label>
+                <Input
+                  id="item_quantity"
+                  type="number"
+                  value={editItemForm.quantity}
+                  onChange={(e) => setEditItemForm(prev => ({ ...prev, quantity: e.target.value }))}
+                  placeholder="Qty"
+                />
+              </div>
+              <div>
+                <Label htmlFor="item_price">Unit Price</Label>
+                <Input
+                  id="item_price"
+                  type="number"
+                  step="0.01"
+                  value={editItemForm.unit_price}
+                  onChange={(e) => setEditItemForm(prev => ({ ...prev, unit_price: e.target.value }))}
+                  placeholder="Unit price"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="item_category">Category</Label>
+              <Select
+                value={editItemForm.category_id}
+                onValueChange={(value) => setEditItemForm(prev => ({ ...prev, category_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border z-50 max-h-60 overflow-y-auto">
+                  {categories.length === 0 ? (
+                    <SelectItem value="loading">Loading categories...</SelectItem>
+                  ) : (
+                    categories.map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {editItemForm.quantity && editItemForm.unit_price && (
+              <div className="text-sm text-muted-foreground">
+                Total: RM{(parseInt(editItemForm.quantity) * parseFloat(editItemForm.unit_price)).toFixed(2)}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              setEditingItem(null);
+              setEditItemForm({ name: "", quantity: "", unit_price: "", category_id: "" });
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveItemEdit}
+              disabled={!editItemForm.name || !editItemForm.quantity || !editItemForm.unit_price || !editItemForm.category_id}
+            >
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
