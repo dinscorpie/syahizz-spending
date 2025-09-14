@@ -38,6 +38,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Filter } from "lucide-react";
 import { toast } from "sonner";
 
 interface Receipt {
@@ -60,6 +62,11 @@ interface Item {
   receipt_id: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 const TransactionHistory = () => {
   const { currentAccount } = useAccountContext();
   const { user } = useAuth();
@@ -71,6 +78,8 @@ const TransactionHistory = () => {
   const [deleteReceiptId, setDeleteReceiptId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [editForm, setEditForm] = useState({
     vendor_name: "",
     total_amount: "",
@@ -88,12 +97,16 @@ const TransactionHistory = () => {
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
-    console.log("Account changed:", currentAccount);
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    console.log("Account or category changed:", currentAccount, selectedCategory);
     if (currentAccount) {
-      setCurrentPage(1); // Reset to first page when account changes
+      setCurrentPage(1); // Reset to first page when account or category changes
       fetchTransactions();
     }
-  }, [currentAccount]);
+  }, [currentAccount, selectedCategory]);
 
   useEffect(() => {
     console.log("Page changed:", currentPage);
@@ -108,14 +121,40 @@ const TransactionHistory = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       
-      // Build the base query
+      // Build the base query with joins to get category information
       let query = supabase
         .from("receipts")
-        .select("*", { count: 'exact' })
+        .select(`
+          *,
+          items!inner (
+            id,
+            name,
+            category_id,
+            category_path,
+            categories (
+              id,
+              name
+            )
+          )
+        `, { count: 'exact' })
         .order("date", { ascending: false });
 
       // Apply account filtering (only when we know the current account)
@@ -124,7 +163,11 @@ const TransactionHistory = () => {
       } else if (currentAccount?.type === "personal" && user?.id) {
         query = query.eq("user_id", user.id).is("family_id", null);
       }
-      // Else: no extra filter — rely on RLS to return only the authenticated user's data
+
+      // Apply category filtering
+      if (selectedCategory !== "all") {
+        query = query.eq("items.category_id", selectedCategory);
+      }
 
       // Apply pagination
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -138,7 +181,24 @@ const TransactionHistory = () => {
         throw error;
       }
 
-      setReceipts(receiptsData || []);
+      // Process receipts to remove duplicates (due to joins)
+      const uniqueReceipts = receiptsData?.reduce((acc: Receipt[], receipt: any) => {
+        const existingIndex = acc.findIndex(r => r.id === receipt.id);
+        if (existingIndex === -1) {
+          acc.push({
+            id: receipt.id,
+            vendor_name: receipt.vendor_name,
+            total_amount: receipt.total_amount,
+            date: receipt.date,
+            notes: receipt.notes,
+            family_id: receipt.family_id,
+            user_id: receipt.user_id
+          });
+        }
+        return acc;
+      }, []) || [];
+
+      setReceipts(uniqueReceipts);
       setTotalCount(count || 0);
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -396,7 +456,25 @@ const TransactionHistory = () => {
             Viewing: {currentAccount?.name} ({totalCount} transactions)
           </p>
         </div>
-        <AccountSelector />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-48 bg-background border z-50">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border z-50 max-h-60 overflow-y-auto">
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AccountSelector />
+        </div>
       </div>
 
       {receipts.length === 0 ? (
