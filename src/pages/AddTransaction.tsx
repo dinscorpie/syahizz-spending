@@ -255,21 +255,6 @@ const AddTransaction = () => {
 
   return (
     <div className="container py-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <p className="text-muted-foreground mt-1">
-            Recording to: {currentAccount?.name}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
-      </div>
-      
-      {/* Account Selector */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-2">Save to Account</label>
         <AccountSelector className="w-[250px]" />
