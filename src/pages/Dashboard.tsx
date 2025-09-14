@@ -10,6 +10,7 @@ import { AccountSelector } from '@/components/AccountSelector';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -51,6 +52,8 @@ const Dashboard = () => {
   });
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [dailySpendingDays, setDailySpendingDays] = useState(30);
+  const [dailySpendingInput, setDailySpendingInput] = useState('30');
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -88,7 +91,7 @@ const Dashboard = () => {
     if (currentAccount) {
       fetchDashboardData();
     }
-  }, [selectedPeriod, customDateRange, currentAccount]);
+  }, [selectedPeriod, customDateRange, currentAccount, dailySpendingDays]);
 
   const fetchCategories = async () => {
     try {
@@ -199,7 +202,7 @@ const Dashboard = () => {
       const dailySpending = Array.from(dailyMap.entries())
         .map(([date, amount]) => ({ date, amount }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .slice(-14); // Show last 14 days
+        .slice(-dailySpendingDays); // Show last N days based on user input
 
       setDashboardData({
         totalAmount,
@@ -511,7 +514,32 @@ const Dashboard = () => {
         {/* Daily Spending Chart */}
         <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold">Daily Spending Trend</CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <CardTitle className="text-lg font-semibold">Daily Spending Trend</CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Show last</span>
+                <Input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={dailySpendingInput}
+                  onChange={(e) => setDailySpendingInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const days = parseInt(dailySpendingInput) || 30;
+                      if (days >= 1 && days <= 365) {
+                        setDailySpendingDays(days);
+                      } else {
+                        setDailySpendingInput(dailySpendingDays.toString());
+                      }
+                    }
+                  }}
+                  className="w-16 h-8 text-center text-sm"
+                  placeholder="30"
+                />
+                <span className="text-sm text-muted-foreground">days</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {dashboardData.dailySpending.length > 0 ? (
