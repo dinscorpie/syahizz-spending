@@ -144,7 +144,7 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-6 px-4">
+      <div className="container py-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -156,7 +156,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-4xl">
+    <div className="container py-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Profile & Family Management</h1>
         <p className="text-muted-foreground">Manage your profile and family settings</p>

@@ -425,7 +425,7 @@ const TransactionHistory = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-6 px-4">
+      <div className="container py-6">
         <div className="flex justify-between items-center mb-6">
           <div>
             <p className="text-muted-foreground mt-1">
@@ -449,7 +449,7 @@ const TransactionHistory = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <p className="text-muted-foreground mt-1">

@@ -6,7 +6,7 @@ import { Plus, Receipt, BarChart3 } from "lucide-react";
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 px-4">
+      <div className="container py-8">
         <div className="text-center mb-8">
           <h1 className="mb-4 text-4xl font-bold">Our Finance</h1>
           <p className="text-xl text-muted-foreground">Track your expenses with AI-powered receipt processing</p>

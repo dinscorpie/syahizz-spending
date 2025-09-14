@@ -265,7 +265,7 @@ const Dashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-6 px-4">
+      <div className="container py-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -280,7 +280,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container py-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground mt-1">
@@ -301,7 +301,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="container mx-auto py-6 px-4">
+      <div className="container py-6">
         {/* Controls Row */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
