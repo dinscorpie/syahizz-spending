@@ -708,11 +708,22 @@ const TransactionHistory = () => {
                           placeholder="Unit price"
                         />
                       </div>
-                      <Input
+                      <Select
                         value={item.category_path || ''}
-                        onChange={(e) => handleItemChange(index, 'category_path', e.target.value)}
-                        placeholder="Category (optional)"
-                      />
+                        onValueChange={(value) => handleItemChange(index, 'category_path', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No category</SelectItem>
+                          {categories.map(category => (
+                            <SelectItem key={category.id} value={category.name}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <div className="text-sm text-muted-foreground">
                         Total: RM{item.total_price.toFixed(2)}
                       </div>
@@ -745,11 +756,22 @@ const TransactionHistory = () => {
                       placeholder="Unit price"
                     />
                   </div>
-                  <Input
+                  <Select
                     value={newItem.category_path}
-                    onChange={(e) => setNewItem(prev => ({ ...prev, category_path: e.target.value }))}
-                    placeholder="Category (optional)"
-                  />
+                    onValueChange={(value) => setNewItem(prev => ({ ...prev, category_path: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No category</SelectItem>
+                      {categories.map(category => (
+                        <SelectItem key={category.id} value={category.name}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button 
                     onClick={handleAddItem} 
                     className="w-full" 
