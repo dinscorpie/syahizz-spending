@@ -35,7 +35,6 @@ const receiptSchema = z.object({
   date: z.date(),
   total_amount: z.number().min(0, 'Total amount must be positive'),
   tax_amount: z.number().min(0).optional(),
-  tip_amount: z.number().min(0).optional(),
   service_charge: z.number().min(0).optional(),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1, 'At least one item is required'),
@@ -66,7 +65,6 @@ const AddTransaction = () => {
       date: new Date(),
       total_amount: 0,
       tax_amount: 0,
-      tip_amount: 0,
       service_charge: 0,
       notes: '',
       items: [{ 
@@ -150,7 +148,7 @@ const AddTransaction = () => {
       form.setValue('date', data.date ? new Date(data.date) : new Date());
       form.setValue('total_amount', Number(data.total_amount) || 0);
       form.setValue('tax_amount', Number(data.tax_amount) || 0);
-      form.setValue('tip_amount', Number(data.tip_amount) || 0);
+      
 
       const mappedItems = (data.items || []).map((item: any) => {
         const category = categories.find(
@@ -196,7 +194,7 @@ const AddTransaction = () => {
           date: data.date.toISOString(),
           total_amount: data.total_amount,
           tax_amount: data.tax_amount,
-          tip_amount: data.tip_amount,
+          
           service_charge: data.service_charge,
           notes: data.notes,
           user_id: user?.id || '',
@@ -411,28 +409,8 @@ const AddTransaction = () => {
                     />
                   </div>
 
-                  {/* Row 2: Tip Amount and Service Charge */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="tip_amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tip Amount</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
+                  {/* Row 2: Service Charge (single field) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="service_charge"
@@ -452,6 +430,8 @@ const AddTransaction = () => {
                         </FormItem>
                       )}
                     />
+                    {/* Empty column */}
+                    <div></div>
                   </div>
                 </div>
 

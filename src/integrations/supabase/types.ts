@@ -244,7 +244,6 @@ export type Database = {
           notes: string | null
           service_charge: number | null
           tax_amount: number | null
-          tip_amount: number | null
           total_amount: number
           user_id: string
           vendor_id: string | null
@@ -262,7 +261,6 @@ export type Database = {
           notes?: string | null
           service_charge?: number | null
           tax_amount?: number | null
-          tip_amount?: number | null
           total_amount: number
           user_id: string
           vendor_id?: string | null
@@ -280,7 +278,6 @@ export type Database = {
           notes?: string | null
           service_charge?: number | null
           tax_amount?: number | null
-          tip_amount?: number | null
           total_amount?: number
           user_id?: string
           vendor_id?: string | null
