@@ -375,7 +375,7 @@ const Dashboard = () => {
           <Card className="hover:shadow-lg transition-all duration-300">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
+                <span className="text-lg">💸</span>
                 Financial Overview
               </CardTitle>
             </CardHeader>
