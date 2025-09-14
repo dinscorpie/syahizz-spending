@@ -560,8 +560,8 @@ const AddTransaction = () => {
                         />
                       </div>
 
-                      {/* Third row: Total Price (centered) */}
-                      <div className="grid grid-cols-2 gap-4 mb-4">
+                      {/* Third row: Total Price (full width) */}
+                      <div className="mb-4">
                         <FormField
                           control={form.control}
                           name={`items.${index}.total_price`}
@@ -581,8 +581,6 @@ const AddTransaction = () => {
                             </FormItem>
                           )}
                         />
-                        {/* Empty column for alignment */}
-                        <div></div>
                       </div>
 
                       {/* Third row: Description and delete button */}
