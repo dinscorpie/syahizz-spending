@@ -20,8 +20,6 @@ interface ReceiptData {
   vendor_name: string;
   date: string;
   total_amount: number;
-  tax_amount?: number;
-  service_charge?: number;
   items: ReceiptItem[];
 }
 
@@ -76,31 +74,31 @@ serve(async (req) => {
           {
             role: 'system',
             content: `You are a receipt processing AI. Extract all relevant information from the receipt image and return it in JSON format. For each item, categorize it appropriately using the available categories. Return the data in this exact structure:
-            {
-              "vendor_name": "string",
-              "date": "YYYY-MM-DD",
-              "total_amount": number,
-              "tax_amount": number,
-              "service_charge": number,
-              "items": [
-                {
-                  "name": "string",
-                  "quantity": number,
-                  "unit_price": number,
-                  "total_price": number,
-                  "category": "string",
-                  "subcategory": "string"
-                }
-              ]
-            }
+             {
+               "vendor_name": "string",
+               "date": "YYYY-MM-DD",
+               "total_amount": number,
+               "items": [
+                 {
+                   "name": "string",
+                   "quantity": number,
+                   "unit_price": number,
+                   "total_price": number,
+                   "category": "string"
+                 }
+               ]
+             }
             
             Available categories: ${categoryList}
             
             CRITICAL REQUIREMENTS:
             - You MUST extract ALL items from the receipt. The items array CANNOT be empty.
             - Every receipt has at least one item - find and extract ALL items listed.
+            - If tax is shown separately, include it as a separate item with category "Tax"
+            - If service charge is shown separately, include it as a separate item with category "Service Charge"
             - You MUST assign a category to EVERY item. Choose the most appropriate category from the list above for each item. If an item doesn't fit any category well, use "Other". Never leave category field empty or null.
             - If you cannot clearly see individual items, extract what you can see or create reasonable line items based on the total amount.
+            - The total_amount should be the final total including all taxes and charges
             - Be precise with amounts and dates. If information is unclear, make reasonable assumptions.
             
             IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown, or code fences.`

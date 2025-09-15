@@ -51,8 +51,6 @@ interface Receipt {
   id: string;
   vendor_name: string;
   total_amount: number;
-  tax_amount?: number;
-  service_charge?: number;
   date: string;
   notes?: string;
   family_id?: string;
@@ -97,8 +95,6 @@ const TransactionHistory = () => {
   const [editForm, setEditForm] = useState({
     vendor_name: "",
     total_amount: "",
-    tax_amount: "",
-    service_charge: "",
     date: "",
     notes: ""
   });
@@ -502,8 +498,6 @@ const TransactionHistory = () => {
     setEditForm({
       vendor_name: receipt.vendor_name,
       total_amount: receipt.total_amount.toString(),
-      tax_amount: (receipt.tax_amount || 0).toString(),
-      service_charge: (receipt.service_charge || 0).toString(),
       date: format(new Date(receipt.date), "yyyy-MM-dd"),
       notes: receipt.notes || ""
     });
@@ -521,8 +515,6 @@ const TransactionHistory = () => {
         .update({
           vendor_name: editForm.vendor_name,
           total_amount: parseFloat(editForm.total_amount),
-          tax_amount: parseFloat(editForm.tax_amount) || 0,
-          service_charge: parseFloat(editForm.service_charge) || 0,
           date: editForm.date,
           notes: editForm.notes
         })
@@ -553,8 +545,6 @@ const TransactionHistory = () => {
           ? { 
               ...receipt, 
               vendor_name: editForm.vendor_name,
-              tax_amount: parseFloat(editForm.tax_amount) || 0,
-              service_charge: parseFloat(editForm.service_charge) || 0,
               date: editForm.date,
               notes: editForm.notes,
               total_amount: newTotal 
@@ -1062,30 +1052,6 @@ const TransactionHistory = () => {
                   value={editForm.total_amount}
                   onChange={(e) => setEditForm(prev => ({ ...prev, total_amount: e.target.value }))}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="tax_amount">Tax Amount</Label>
-                  <Input
-                    id="tax_amount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={editForm.tax_amount}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, tax_amount: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="service_charge">Service Charge</Label>
-                  <Input
-                    id="service_charge"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={editForm.service_charge}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, service_charge: e.target.value }))}
-                  />
-                </div>
               </div>
               <div>
                 <Label htmlFor="date">Date</Label>

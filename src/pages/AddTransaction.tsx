@@ -34,8 +34,6 @@ const receiptSchema = z.object({
   vendor_name: z.string().min(1, 'Vendor name is required'),
   date: z.date(),
   total_amount: z.number().min(0, 'Total amount must be positive'),
-  tax_amount: z.number().min(0).optional(),
-  service_charge: z.number().min(0).optional(),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1, 'At least one item is required'),
 });
@@ -64,8 +62,6 @@ const AddTransaction = () => {
       vendor_name: '',
       date: new Date(),
       total_amount: 0,
-      tax_amount: 0,
-      service_charge: 0,
       notes: '',
       items: [{ 
         name: '', 
@@ -147,7 +143,6 @@ const AddTransaction = () => {
       form.setValue('vendor_name', data.vendor_name || '');
       form.setValue('date', data.date ? new Date(data.date) : new Date());
       form.setValue('total_amount', Number(data.total_amount) || 0);
-      form.setValue('tax_amount', Number(data.tax_amount) || 0);
       
 
       const mappedItems = (data.items || []).map((item: any) => {
@@ -193,9 +188,6 @@ const AddTransaction = () => {
           vendor_name: data.vendor_name,
           date: data.date.toISOString(),
           total_amount: data.total_amount,
-          tax_amount: data.tax_amount,
-          
-          service_charge: data.service_charge,
           notes: data.notes,
           user_id: user?.id || '',
           family_id: currentAccount?.type === 'family' ? currentAccount.familyId : null,
@@ -366,50 +358,7 @@ const AddTransaction = () => {
 
                 {/* Amount Details - organized with total amount prominent */}
                 <div className="space-y-4">
-                  {/* Row 1: Tax Amount and Service Charge */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="tax_amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tax Amount</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="service_charge"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Service Charge</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Row 2: Total Amount (prominent, full width) */}
+                  {/* Total Amount */}
                   <div>
                     <FormField
                       control={form.control}

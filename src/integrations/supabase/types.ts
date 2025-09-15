@@ -242,8 +242,6 @@ export type Database = {
           id: string
           image_url: string | null
           notes: string | null
-          service_charge: number | null
-          tax_amount: number | null
           total_amount: number
           user_id: string
           vendor_id: string | null
@@ -259,8 +257,6 @@ export type Database = {
           id?: string
           image_url?: string | null
           notes?: string | null
-          service_charge?: number | null
-          tax_amount?: number | null
           total_amount: number
           user_id: string
           vendor_id?: string | null
@@ -276,8 +272,6 @@ export type Database = {
           id?: string
           image_url?: string | null
           notes?: string | null
-          service_charge?: number | null
-          tax_amount?: number | null
           total_amount?: number
           user_id?: string
           vendor_id?: string | null
