@@ -55,6 +55,7 @@ interface Receipt {
   notes?: string;
   family_id?: string;
   user_id: string;
+  added_by?: string;
 }
 
 interface Item {
@@ -74,7 +75,7 @@ interface Category {
 }
 
 const TransactionHistory = () => {
-  const { currentAccount } = useAccountContext();
+  const { currentAccount, loading: accountLoading } = useAccountContext();
   const { user } = useAuth();
   const { getDisplayName, familyMembers } = useFamilyData();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -119,7 +120,7 @@ const TransactionHistory = () => {
   }, []);
 
   useEffect(() => {
-    if (currentAccount) {
+    if (currentAccount && !accountLoading) {
       setCurrentPage(1);
       if (viewMode === "receipt") {
         fetchTransactions();
@@ -127,33 +128,23 @@ const TransactionHistory = () => {
         fetchAllItems();
       }
     }
-  }, [currentAccount, selectedCategory, sortBy, sortOrder, viewMode]);
+  }, [currentAccount, selectedCategory, sortBy, sortOrder, viewMode, accountLoading]);
 
   useEffect(() => {
-    if (currentAccount) {
+    if (currentAccount && !accountLoading) {
       if (viewMode === "receipt") {
         fetchTransactions();
       } else {
         fetchAllItems();
       }
     }
-  }, [currentPage]);
+  }, [currentPage, currentAccount, viewMode, accountLoading]);
 
-  // Initial load
-  useEffect(() => {
-    fetchCategories();
-    if (currentAccount) {
-      if (viewMode === "receipt") {
-        fetchTransactions();
-      } else {
-        fetchAllItems();
-      }
-    }
-  }, []);
+  // Removed duplicate initial fetch to prevent incorrect initial data
 
   // Clear cache when filters change
   useEffect(() => {
-    if (currentAccount) {
+    if (currentAccount && !accountLoading) {
       setItems({});
       if (viewMode === "receipt") {
         fetchTransactions();
@@ -161,7 +152,7 @@ const TransactionHistory = () => {
         fetchAllItems();
       }
     }
-  }, [selectedCategory, viewMode]);
+  }, [selectedCategory, viewMode, currentAccount, accountLoading]);
 
   const fetchCategories = async () => {
     try {
@@ -242,7 +233,8 @@ const TransactionHistory = () => {
             date: receipt.date,
             notes: receipt.notes,
             family_id: receipt.family_id,
-            user_id: receipt.user_id
+            user_id: receipt.user_id,
+            added_by: receipt.added_by
           });
         }
         return acc;
@@ -808,7 +800,7 @@ const TransactionHistory = () => {
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             {format(new Date(receipt.date), "dd MMM yyyy")}
-                            <span>• By: {getDisplayName(receipt.user_id)}</span>
+                            <span>• By: {getDisplayName(receipt.added_by || receipt.user_id, receipt.family_id)}</span>
                           </div>
                         </div>
                       </div>
@@ -944,7 +936,7 @@ const TransactionHistory = () => {
                             {item.receipts && format(new Date(item.receipts.date), "dd MMM yyyy")}
                           </div>
                           <div>From: {item.receipts?.vendor_name}</div>
-                          <div>By: {getDisplayName(item.receipts?.user_id)}</div>
+                          <div>By: {getDisplayName(item.receipts?.added_by || item.receipts?.user_id, item.receipts?.family_id)}</div>
                           <div>{item.quantity} × RM{item.unit_price.toFixed(2)}</div>
                         </div>
                       </div>

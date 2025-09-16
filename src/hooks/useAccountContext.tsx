@@ -68,17 +68,14 @@ export const AccountProvider = ({ children }: AccountProviderProps) => {
 
       setAvailableAccounts(accounts);
 
-      // Set default account if none is selected
-      if (!currentAccount) {
-        const savedAccountId = localStorage.getItem('currentAccountId');
-        const savedAccount = accounts.find(acc => acc.id === savedAccountId);
-        
-        if (savedAccount) {
-          setCurrentAccountState(savedAccount);
-        } else {
-          // Default to personal account
-          setCurrentAccountState(accounts[0]);
-        }
+      const savedAccountId = localStorage.getItem('currentAccountId');
+      const savedAccount = accounts.find(acc => acc.id === savedAccountId);
+      
+      if (savedAccount && (!currentAccount || currentAccount.id !== savedAccount.id)) {
+        setCurrentAccountState(savedAccount);
+      } else if (!currentAccount) {
+        // Default to personal account
+        setCurrentAccountState(accounts[0]);
       }
       setLoading(false);
     }
