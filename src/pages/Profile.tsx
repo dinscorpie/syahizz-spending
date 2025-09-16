@@ -66,7 +66,31 @@ const Profile = () => {
         .gt("expires_at", new Date().toISOString());
 
       if (error) throw error;
-      setPendingInvitations(data || []);
+      
+      // Fetch additional data for each invitation
+      const enrichedInvitations = await Promise.all((data || []).map(async (invitation) => {
+        // Fetch family name
+        const { data: familyData } = await supabase
+          .from("families")
+          .select("name")
+          .eq("id", invitation.family_id)
+          .maybeSingle();
+
+        // Fetch inviter profile
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("name, email")
+          .eq("id", invitation.invited_by)
+          .maybeSingle();
+
+        return {
+          ...invitation,
+          families: familyData,
+          profiles: profileData
+        };
+      }));
+
+      setPendingInvitations(enrichedInvitations);
     } catch (error) {
       console.error("Error fetching pending invitations:", error);
     }
@@ -265,7 +289,7 @@ const Profile = () => {
                             </p>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Calendar className="h-4 w-4" />
-                              Expires: {format(new Date(invitation.expires_at), "dd MMM yyyy 'at' h:mm a")}
+                              Expires: {format(new Date(invitation.expires_at), "dd MMM yyyy")}
                             </div>
                           </div>
                           <div className="flex gap-2">
