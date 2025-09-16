@@ -61,6 +61,7 @@ export const FamilyManager = () => {
           family_id: selectedFamilyForInvite,
           invited_email: inviteEmail.trim(),
           invited_by: userProfile?.id,
+          invited_by_name: userProfile?.name || userProfile?.email || "Unknown",
         });
 
       if (error) throw error;

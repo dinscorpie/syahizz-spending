@@ -20,6 +20,7 @@ interface PendingInvitation {
   family_id: string;
   invited_email: string;
   invited_by: string;
+  invited_by_name?: string | null;
   expires_at: string;
   created_at: string;
   families?: {
@@ -60,7 +61,7 @@ const Profile = () => {
     try {
       const { data, error } = await supabase
         .from("family_invitations")
-        .select("id, family_id, invited_email, invited_by, expires_at, created_at, status")
+        .select("id, family_id, invited_email, invited_by, invited_by_name, expires_at, created_at, status")
         .eq("invited_email", user.email)
         .eq("status", "pending")
         .gt("expires_at", new Date().toISOString());
@@ -285,7 +286,7 @@ const Profile = () => {
                               Invitation to join "{invitation.families?.name || "a family"}"
                             </h4>
                             <p className="text-sm text-muted-foreground">
-                              From: {invitation.profiles?.name || invitation.profiles?.email || "Family admin"}
+                              From: {invitation.invited_by_name || invitation.profiles?.name || invitation.profiles?.email || "Family admin"}
                             </p>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Calendar className="h-4 w-4" />

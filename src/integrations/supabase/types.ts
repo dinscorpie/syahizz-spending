@@ -80,6 +80,7 @@ export type Database = {
           family_id: string
           id: string
           invited_by: string
+          invited_by_name: string | null
           invited_email: string
           status: string
         }
@@ -89,6 +90,7 @@ export type Database = {
           family_id: string
           id?: string
           invited_by: string
+          invited_by_name?: string | null
           invited_email: string
           status?: string
         }
@@ -98,6 +100,7 @@ export type Database = {
           family_id?: string
           id?: string
           invited_by?: string
+          invited_by_name?: string | null
           invited_email?: string
           status?: string
         }
