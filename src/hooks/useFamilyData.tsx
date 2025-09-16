@@ -33,6 +33,13 @@ export const useFamilyData = () => {
   useEffect(() => {
     if (user) {
       fetchFamilyData();
+    } else {
+      // If no user, reset state and stop loading
+      setFamilies([]);
+      setFamilyMembers({});
+      setMembershipRoles({});
+      setUserProfile(null);
+      setLoading(false);
     }
   }, [user]);
 
