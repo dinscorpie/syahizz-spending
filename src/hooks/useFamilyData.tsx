@@ -48,13 +48,16 @@ export const useFamilyData = () => {
     
     try {
       // Get user profile
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
-      
-      setUserProfile(profile);
+        .maybeSingle();
+
+      if (profileError) {
+        console.warn("Profile not found or error fetching profile:", profileError.message);
+      }
+      setUserProfile(profile || null);
 
       // Get all user's families
       const { data: familyMemberships } = await supabase
