@@ -112,9 +112,31 @@ const TransactionHistory = () => {
     unit_price: "",
     category_id: ""
   });
+const [profilesMap, setProfilesMap] = useState<Record<string, { name: string | null; email: string | null }>>({});
 
-  const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 20;
 
+// Helper to load and cache user profiles for display names
+const loadProfiles = async (userIds: string[]) => {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  if (!ids.length) return;
+  // Filter out ids we already have
+  const missing = ids.filter(id => !profilesMap[id]);
+  if (!missing.length) return;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,name,email")
+    .in("id", missing);
+  if (!error && data) {
+    setProfilesMap(prev => {
+      const next = { ...prev } as Record<string, { name: string | null; email: string | null }>;
+      for (const p of data as any[]) {
+        next[p.id] = { name: p.name ?? null, email: p.email ?? null };
+      }
+      return next;
+    });
+  }
+};
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -243,6 +265,7 @@ const TransactionHistory = () => {
         return acc;
       }, []) || [];
 
+      await loadProfiles(uniqueReceipts.flatMap(r => [r.added_by || r.user_id, r.user_id]));
       setReceipts(uniqueReceipts);
       setTotalCount(count || 0);
     } catch (error) {
@@ -319,6 +342,7 @@ const TransactionHistory = () => {
         throw error;
       }
 
+      await loadProfiles((itemsData || []).map((it: any) => it.receipts?.added_by || it.receipts?.user_id));
       setAllItems(itemsData || []);
       setTotalCount(count || 0);
     } catch (error) {
@@ -807,7 +831,7 @@ const TransactionHistory = () => {
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             {format(new Date(receipt.date), "dd MMM yyyy")}
-                            <span>• By: {getDisplayName(receipt.added_by || receipt.user_id, receipt.family_id)}</span>
+                            <span>• By: {profilesMap[(receipt.added_by || receipt.user_id)]?.name || profilesMap[(receipt.added_by || receipt.user_id)]?.email || getDisplayName(receipt.added_by || receipt.user_id, receipt.family_id)}</span>
                           </div>
                         </div>
                       </div>
@@ -943,7 +967,7 @@ const TransactionHistory = () => {
                             {item.receipts && format(new Date(item.receipts.date), "dd MMM yyyy")}
                           </div>
                           <div>From: {item.receipts?.vendor_name}</div>
-                          <div>By: {getDisplayName(item.receipts?.added_by || item.receipts?.user_id, item.receipts?.family_id)}</div>
+                          <div>By: {profilesMap[((item.receipts?.added_by || item.receipts?.user_id) as string)]?.name || profilesMap[((item.receipts?.added_by || item.receipts?.user_id) as string)]?.email || getDisplayName(item.receipts?.added_by || item.receipts?.user_id, item.receipts?.family_id)}</div>
                           <div>{item.quantity} × RM{item.unit_price.toFixed(2)}</div>
                         </div>
                       </div>
