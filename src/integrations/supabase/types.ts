@@ -205,6 +205,13 @@ export type Database = {
             referencedRelation: "receipts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "items_receipt_id_receipts_id_fk"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts_with_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -323,7 +330,43 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      receipts_with_profiles: {
+        Row: {
+          added_by: string | null
+          added_by_email: string | null
+          added_by_name: string | null
+          ai_data: Json | null
+          ai_extracted: boolean | null
+          created_at: string | null
+          date: string | null
+          family_id: string | null
+          id: string | null
+          image_url: string | null
+          notes: string | null
+          total_amount: number | null
+          user_email: string | null
+          user_id: string | null
+          user_name: string | null
+          vendor_id: string | null
+          vendor_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_vendor_id_vendors_id_fk"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_family_invitation: {

@@ -195,19 +195,8 @@ const TransactionHistory = () => {
       setLoading(true);
       
       let query = supabase
-        .from("receipts")
-        .select(`
-          *,
-          items (
-            id,
-            name,
-            category_id,
-            categories (
-              id,
-              name
-            )
-          )
-        `, { count: 'exact' });
+        .from("receipts_with_profiles")
+        .select("*", { count: 'exact' });
 
       // Apply sorting with created_at as secondary sort
       if (sortBy === "date") {
@@ -232,7 +221,19 @@ const TransactionHistory = () => {
 
       // Apply category filtering
       if (selectedCategory !== "all") {
-        query = query.eq("items.category_id", selectedCategory);
+        const { data: ridRows, error: ridErr } = await supabase
+          .from("items")
+          .select("receipt_id")
+          .eq("category_id", selectedCategory);
+        if (ridErr) throw ridErr;
+        const ids = Array.from(new Set((ridRows || []).map((r: any) => r.receipt_id)));
+        if (ids.length === 0) {
+          setReceipts([]);
+          setTotalCount(0);
+          setLoading(false);
+          return;
+        }
+        query = query.in("id", ids);
       }
 
       // Apply pagination
@@ -259,13 +260,17 @@ const TransactionHistory = () => {
             notes: receipt.notes,
             family_id: receipt.family_id,
             user_id: receipt.user_id,
-            added_by: receipt.added_by
-          });
+            added_by: receipt.added_by,
+            // Names/emails from view (optional)
+            added_by_name: (receipt as any).added_by_name,
+            added_by_email: (receipt as any).added_by_email,
+            user_name: (receipt as any).user_name,
+            user_email: (receipt as any).user_email,
+          } as any);
         }
         return acc;
       }, []) || [];
 
-      await loadProfiles(uniqueReceipts.flatMap(r => [r.added_by || r.user_id, r.user_id]));
       setReceipts(uniqueReceipts);
       setTotalCount(count || 0);
     } catch (error) {
@@ -831,7 +836,7 @@ const TransactionHistory = () => {
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             {format(new Date(receipt.date), "dd MMM yyyy")}
-                            <span>• By: {profilesMap[(receipt.added_by || receipt.user_id)]?.name || profilesMap[(receipt.added_by || receipt.user_id)]?.email || getDisplayName(receipt.added_by || receipt.user_id, receipt.family_id)}</span>
+                            <span>• By: {(receipt as any).added_by_name || (receipt as any).user_name || (receipt as any).added_by_email || (receipt as any).user_email || profilesMap[(receipt.added_by || receipt.user_id)]?.name || profilesMap[(receipt.added_by || receipt.user_id)]?.email || getDisplayName(receipt.added_by || receipt.user_id, receipt.family_id)}</span>
                           </div>
                         </div>
                       </div>
