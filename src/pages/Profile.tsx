@@ -265,7 +265,7 @@ const Profile = () => {
                         <div className="flex justify-between items-start">
                           <div className="space-y-2">
                             <h4 className="font-semibold">
-                              Invitation to join "{invitation.families.name}"
+                              Invitation to join "{invitation.families?.name || "a family"}"
                             </h4>
                             <p className="text-sm text-muted-foreground">
                               From: {invitation.profiles?.name || invitation.profiles?.email}
