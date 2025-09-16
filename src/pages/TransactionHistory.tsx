@@ -207,15 +207,7 @@ const TransactionHistory = () => {
 
       // Apply account filtering
       if (currentAccount?.type === "family" && currentAccount.familyId) {
-        // For family accounts, show all receipts from family members (both family receipts and personal receipts from family members)
-        const currentFamilyMembers = familyMembers[currentAccount.familyId] || [];
-        const familyMemberIds = currentFamilyMembers.map(member => member.user_id);
-        
-        if (familyMemberIds.length > 0) {
-          query = query.or(`family_id.eq.${currentAccount.familyId},user_id.in.(${familyMemberIds.join(',')})`);
-        } else {
-          query = query.eq("family_id", currentAccount.familyId);
-        }
+        query = query.eq("family_id", currentAccount.familyId);
       } else if (currentAccount?.type === "personal" && user?.id) {
         query = query.eq("user_id", user.id).is("family_id", null);
       } else if (currentAccount?.type === "my-spending" && user?.id) {
