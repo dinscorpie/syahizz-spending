@@ -48,6 +48,13 @@ export const AccountProvider = ({ children }: AccountProviderProps) => {
         }
       ];
 
+      // Add My Spending account to show all user's personal transactions
+      accounts.push({
+        id: `my-spending-${user.id}`,
+        name: 'My Spending',
+        type: 'my-spending',
+      });
+
       if (families && families.length > 0) {
         families.forEach(family => {
           accounts.push({
