@@ -185,7 +185,7 @@ const TransactionHistory = () => {
         .from("receipts")
         .select(`
           *,
-          items!inner (
+          items (
             id,
             name,
             category_id,
