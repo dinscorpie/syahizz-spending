@@ -187,13 +187,16 @@ const TransactionHistory = () => {
           )
         `, { count: 'exact' });
 
-      // Apply sorting
+      // Apply sorting with created_at as secondary sort
       if (sortBy === "date") {
-        query = query.order("date", { ascending: sortOrder === "asc" });
+        query = query.order("date", { ascending: sortOrder === "asc" })
+                     .order("created_at", { ascending: false });
       } else if (sortBy === "amount") {
-        query = query.order("total_amount", { ascending: sortOrder === "asc" });
+        query = query.order("total_amount", { ascending: sortOrder === "asc" })
+                     .order("created_at", { ascending: false });
       } else if (sortBy === "user") {
-        query = query.order("user_id", { ascending: sortOrder === "asc" });
+        query = query.order("user_id", { ascending: sortOrder === "asc" })
+                     .order("created_at", { ascending: false });
       }
 
       // Apply account filtering
@@ -288,16 +291,20 @@ const TransactionHistory = () => {
         query = query.eq("category_id", selectedCategory);
       }
 
-      // Apply sorting
+      // Apply sorting with created_at as secondary sort
       if (sortBy === "date") {
-        query = query.order("date", { foreignTable: "receipts", ascending: sortOrder === "asc" });
+        query = query.order("date", { foreignTable: "receipts", ascending: sortOrder === "asc" })
+                     .order("created_at", { foreignTable: "receipts", ascending: false });
       } else if (sortBy === "amount") {
-        query = query.order("total_price", { ascending: sortOrder === "asc" });
+        query = query.order("total_price", { ascending: sortOrder === "asc" })
+                     .order("created_at", { foreignTable: "receipts", ascending: false });
       } else if (sortBy === "user") {
-        query = query.order("user_id", { foreignTable: "receipts", ascending: sortOrder === "asc" });
+        query = query.order("user_id", { foreignTable: "receipts", ascending: sortOrder === "asc" })
+                     .order("created_at", { foreignTable: "receipts", ascending: false });
       } else {
         // Default sorting by item name
-        query = query.order("name", { ascending: sortOrder === "asc" });
+        query = query.order("name", { ascending: sortOrder === "asc" })
+                     .order("created_at", { foreignTable: "receipts", ascending: false });
       }
 
       // Apply pagination
