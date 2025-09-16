@@ -55,13 +55,21 @@ export const FamilyManager = () => {
 
     setLoading(true);
     try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const inviterId = userProfile?.id || authUser?.id;
+      const inviterName = (userProfile?.name?.trim()) || userProfile?.email || authUser?.email || "Unknown";
+
+      if (!inviterId) {
+        throw new Error("Unable to determine inviter. Please try again.");
+      }
+
       const { error } = await supabase
         .from("family_invitations")
         .insert({
           family_id: selectedFamilyForInvite,
           invited_email: inviteEmail.trim(),
-          invited_by: userProfile?.id,
-          invited_by_name: userProfile?.name || userProfile?.email || "Unknown",
+          invited_by: inviterId,
+          invited_by_name: inviterName,
         });
 
       if (error) throw error;
