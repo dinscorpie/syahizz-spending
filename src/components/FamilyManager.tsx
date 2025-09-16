@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useFamilyData } from "@/hooks/useFamilyData";
-import { Users, Plus, UserPlus, Mail, Crown, User, Trash2 } from "lucide-react";
+import { Users, Plus, UserPlus, Mail, Crown, User, Trash2, LogOut, UserMinus } from "lucide-react";
 
 export const FamilyManager = () => {
   const { families, familyMembers, userProfile, refetch, getUserRole } = useFamilyData();
@@ -126,6 +126,44 @@ export const FamilyManager = () => {
     }
   };
 
+  const handleLeaveFamily = async (familyId: string) => {
+    if (!userProfile?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .from("family_members")
+        .delete()
+        .eq("family_id", familyId)
+        .eq("user_id", userProfile.id);
+
+      if (error) throw error;
+
+      toast.success("Left family successfully");
+      refetch();
+    } catch (error) {
+      console.error("Error leaving family:", error);
+      toast.error("Failed to leave family");
+    }
+  };
+
+  const handleRemoveMember = async (familyId: string, userId: string) => {
+    try {
+      const { error } = await supabase
+        .from("family_members")
+        .delete()
+        .eq("family_id", familyId)
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast.success("Member removed successfully");
+      refetch();
+    } catch (error) {
+      console.error("Error removing member:", error);
+      toast.error("Failed to remove member");
+    }
+  };
+
   // Fetch pending invitations when families change
   useEffect(() => {
     if (families.length > 0) {
@@ -201,67 +239,79 @@ export const FamilyManager = () => {
                       {getUserRole(family.id)}
                     </Badge>
                   </div>
-                  {canManageFamily(family.id) && (
-                    <Dialog 
-                      open={inviteDialogOpen[family.id] || false} 
-                      onOpenChange={(open) => setInviteDialogOpen(prev => ({ ...prev, [family.id]: open }))}
-                    >
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline">
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Invite Member
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Invite Family Member</DialogTitle>
-                          <DialogDescription>
-                            Send an invitation to join your family.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="familySelect">Select Family</Label>
-                            <Select 
-                              value={selectedFamilyForInvite} 
-                              onValueChange={setSelectedFamilyForInvite}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choose which family to invite to..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {families
-                                  .filter(f => canManageFamily(f.id))
-                                  .map((family) => (
-                                    <SelectItem key={family.id} value={family.id}>
-                                      {family.name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label htmlFor="inviteEmail">Email Address</Label>
-                            <Input
-                              id="inviteEmail"
-                              type="email"
-                              value={inviteEmail}
-                              onChange={(e) => setInviteEmail(e.target.value)}
-                              placeholder="Enter email address..."
-                            />
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => setInviteDialogOpen(prev => ({ ...prev, [family.id]: false }))}>
-                            Cancel
+                  <div className="flex gap-2">
+                    {canManageFamily(family.id) && (
+                      <Dialog 
+                        open={inviteDialogOpen[family.id] || false} 
+                        onOpenChange={(open) => setInviteDialogOpen(prev => ({ ...prev, [family.id]: open }))}
+                      >
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Invite Member
                           </Button>
-                          <Button onClick={handleInviteUser} disabled={loading}>
-                            {loading ? "Sending..." : "Send Invitation"}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Invite Family Member</DialogTitle>
+                            <DialogDescription>
+                              Send an invitation to join your family.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="familySelect">Select Family</Label>
+                              <Select 
+                                value={selectedFamilyForInvite} 
+                                onValueChange={setSelectedFamilyForInvite}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Choose which family to invite to..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {families
+                                    .filter(f => canManageFamily(f.id))
+                                    .map((family) => (
+                                      <SelectItem key={family.id} value={family.id}>
+                                        {family.name}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="inviteEmail">Email Address</Label>
+                              <Input
+                                id="inviteEmail"
+                                type="email"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                                placeholder="Enter email address..."
+                              />
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setInviteDialogOpen(prev => ({ ...prev, [family.id]: false }))}>
+                              Cancel
+                            </Button>
+                            <Button onClick={handleInviteUser} disabled={loading}>
+                              {loading ? "Sending..." : "Send Invitation"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                    {getUserRole(family.id) === 'member' && (
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => handleLeaveFamily(family.id)}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Leave Family
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -283,9 +333,20 @@ export const FamilyManager = () => {
                             <Badge variant="outline" className="text-xs">You</Badge>
                           )}
                         </div>
-                        <Badge variant={member.role === 'admin' ? "default" : "secondary"}>
-                          {member.role}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={member.role === 'admin' ? "default" : "secondary"}>
+                            {member.role}
+                          </Badge>
+                          {canManageFamily(family.id) && member.user_id !== userProfile?.id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRemoveMember(family.id, member.user_id)}
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
