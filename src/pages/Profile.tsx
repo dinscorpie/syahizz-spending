@@ -180,7 +180,7 @@ const Profile = () => {
         <p className="text-muted-foreground">Manage your profile and family settings</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs defaultValue="profile" className="space-y-6 max-w-4xl">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="families">Families</TabsTrigger>
@@ -258,7 +258,7 @@ const Profile = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="families">
+        <TabsContent value="families" className="w-full overflow-hidden">
           <FamilyManager />
         </TabsContent>
 

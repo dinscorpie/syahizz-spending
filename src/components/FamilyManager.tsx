@@ -192,9 +192,9 @@ export const FamilyManager = () => {
   const canManageFamily = (familyId: string) => getUserRole(familyId) === 'admin';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-none">
       {/* Header with Create Family Button */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold">Family Management</h2>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -234,7 +234,7 @@ export const FamilyManager = () => {
       </div>
 
       {/* Families List */}
-      <div className="grid gap-4">
+      <div className="grid gap-4 w-full">
         {families.length === 0 ? (
           <Card>
             <CardContent className="text-center py-8">
@@ -249,15 +249,15 @@ export const FamilyManager = () => {
           families.map((family) => (
             <Card key={family.id}>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Users className="h-5 w-5" />
-                    <CardTitle>{family.name}</CardTitle>
+                    <CardTitle className="break-words">{family.name}</CardTitle>
                     <Badge variant={canManageFamily(family.id) ? "default" : "secondary"}>
                       {getUserRole(family.id)}
                     </Badge>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {canManageFamily(family.id) && (
                       <>
                         <Dialog 
@@ -363,22 +363,22 @@ export const FamilyManager = () => {
                 <div className="space-y-3">
                   <h4 className="font-medium text-sm">Members:</h4>
                   <div className="space-y-2">
-                    {(familyMembers[family.id] || []).map((member) => (
-                      <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                        <div className="flex items-center gap-2">
-                          {member.role === 'admin' ? (
-                            <Crown className="h-4 w-4 text-yellow-600" />
-                          ) : (
-                            <User className="h-4 w-4 text-gray-600" />
-                          )}
-                          <span className="font-medium">
-                            {member.profile_name || member.profile_email}
-                          </span>
-                          {member.user_id === userProfile?.id && (
-                            <Badge variant="outline" className="text-xs">You</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
+                     {(familyMembers[family.id] || []).map((member) => (
+                       <div key={member.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted rounded-md gap-2">
+                         <div className="flex items-center gap-2 flex-1 min-w-0">
+                           {member.role === 'admin' ? (
+                             <Crown className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+                           ) : (
+                             <User className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                           )}
+                           <span className="font-medium truncate">
+                             {member.profile_name || member.profile_email}
+                           </span>
+                           {member.user_id === userProfile?.id && (
+                             <Badge variant="outline" className="text-xs flex-shrink-0">You</Badge>
+                           )}
+                         </div>
+                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge variant={member.role === 'admin' ? "default" : "secondary"}>
                             {member.role}
                           </Badge>
@@ -414,10 +414,10 @@ export const FamilyManager = () => {
           <CardContent>
             <div className="space-y-2">
               {pendingInvitations.map((invitation) => (
-                <div key={invitation.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                  <div>
-                    <span className="font-medium">{invitation.invited_email}</span>
-                    <span className="text-sm text-muted-foreground ml-2">
+                <div key={invitation.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted rounded-md gap-2">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium break-words">{invitation.invited_email}</span>
+                    <span className="text-sm text-muted-foreground block sm:inline sm:ml-2">
                       → {(invitation.families as any)?.name}
                     </span>
                   </div>
