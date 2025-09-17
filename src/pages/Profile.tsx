@@ -11,9 +11,10 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { User, Mail, Calendar, UserCheck } from "lucide-react";
+import { User, Mail, Calendar, UserCheck, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { FamilyManager } from "@/components/FamilyManager";
+import { BillingUsage } from "@/components/BillingUsage";
 
 interface PendingInvitation {
   id: string;
@@ -181,7 +182,7 @@ const Profile = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6 max-w-4xl">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="families">Families</TabsTrigger>
           <TabsTrigger value="invitations" className="relative">
@@ -195,6 +196,7 @@ const Profile = () => {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -317,6 +319,10 @@ const Profile = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="billing">
+          <BillingUsage />
         </TabsContent>
       </Tabs>
     </div>
