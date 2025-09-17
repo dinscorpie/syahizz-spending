@@ -135,6 +135,19 @@ serve(async (req) => {
     const content = result.choices?.[0]?.message?.content ?? '';
     console.log('OpenAI content preview:', String(content).slice(0, 200));
 
+    // Extract token usage data from OpenAI response
+    const usage = result.usage;
+    const promptTokens = usage?.prompt_tokens || 0;
+    const completionTokens = usage?.completion_tokens || 0;
+    const totalTokens = usage?.total_tokens || 0;
+
+    // Calculate cost using GPT-4.1 pricing: $2/M input, $8/M output
+    const inputCost = (promptTokens / 1000000) * 2.00;
+    const outputCost = (completionTokens / 1000000) * 8.00;
+    const totalCost = inputCost + outputCost;
+
+    console.log(`Token usage - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${totalTokens}, Cost: $${totalCost.toFixed(6)}`);
+
     function extractJson(text: string): any {
       try {
         return JSON.parse(text);
@@ -186,7 +199,59 @@ serve(async (req) => {
 
     console.log(`Successfully extracted ${extractedData.items.length} items from receipt`);
 
-    return new Response(JSON.stringify(extractedData), {
+    // Get authorization header to extract user info
+    const authHeader = req.headers.get('authorization');
+    if (authHeader) {
+      try {
+        // Set up authenticated supabase client
+        const supabaseAuth = createClient(supabaseUrl, supabaseKey, {
+          global: {
+            headers: {
+              authorization: authHeader,
+            },
+          },
+        });
+
+        // Get current user
+        const { data: { user } } = await supabaseAuth.auth.getUser();
+        
+        if (user) {
+          // Store API usage data
+          const { error: usageError } = await supabaseAuth
+            .from('api_usage')
+            .insert({
+              user_id: user.id,
+              function_name: 'process-receipt',
+              model: 'gpt-4.1-2025-04-14',
+              prompt_tokens: promptTokens,
+              completion_tokens: completionTokens,
+              total_tokens: totalTokens,
+              cost_usd: totalCost,
+            });
+
+          if (usageError) {
+            console.error('Error storing API usage:', usageError);
+          } else {
+            console.log('API usage data stored successfully');
+          }
+        }
+      } catch (authError) {
+        console.error('Error processing user authentication for usage tracking:', authError);
+      }
+    }
+
+    // Add usage data to response for debugging
+    const responseData = {
+      ...extractedData,
+      usage: {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+        cost_usd: totalCost
+      }
+    };
+
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

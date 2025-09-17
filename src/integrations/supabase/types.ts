@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          completion_tokens: number
+          cost_usd: number
+          created_at: string
+          family_id: string | null
+          function_name: string
+          id: string
+          model: string
+          prompt_tokens: number
+          receipt_id: string | null
+          total_tokens: number
+          user_id: string
+        }
+        Insert: {
+          completion_tokens: number
+          cost_usd: number
+          created_at?: string
+          family_id?: string | null
+          function_name: string
+          id?: string
+          model: string
+          prompt_tokens: number
+          receipt_id?: string | null
+          total_tokens: number
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          family_id?: string | null
+          function_name?: string
+          id?: string
+          model?: string
+          prompt_tokens?: number
+          receipt_id?: string | null
+          total_tokens?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null
