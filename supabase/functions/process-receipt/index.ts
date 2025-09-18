@@ -199,8 +199,8 @@ serve(async (req) => {
 
     console.log(`Successfully extracted ${extractedData.items.length} items from receipt`);
 
-    // Get authorization header to extract user info
-    const authHeader = req.headers.get('authorization');
+    // Get authorization header to extract user info (case-insensitive)
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
     console.log('Authorization header present:', !!authHeader);
     
     if (authHeader) {
@@ -214,14 +214,32 @@ serve(async (req) => {
           },
         });
 
-        // Get current user
-        const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-        console.log('User retrieval error:', userError);
-        console.log('User found:', !!user, user?.id);
+        // Extract user id directly from JWT to avoid auth.getUser() issues
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+        const decodeBase64Url = (s: string) => {
+          s = s.replace(/-/g, '+').replace(/_/g, '/');
+          const pad = s.length % 4;
+          if (pad) s += '='.repeat(4 - pad);
+          const decoded = atob(s);
+          const bytes = Uint8Array.from(decoded, c => c.charCodeAt(0));
+          const utf8Decoder = new TextDecoder('utf-8');
+          return utf8Decoder.decode(bytes);
+        };
+        let userId: string | null = null;
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(decodeBase64Url(parts[1]));
+            userId = payload.sub || payload.user_id || null;
+          }
+        } catch (e) {
+          console.log('JWT decode error:', e);
+        }
+        console.log('Derived userId from JWT:', userId);
         
-        if (user) {
+        if (userId) {
           console.log('Attempting to insert usage data:', {
-            user_id: user.id,
+            user_id: userId,
             function_name: 'process-receipt',
             model: 'gpt-4.1-2025-04-14',
             prompt_tokens: promptTokens,
@@ -234,7 +252,7 @@ serve(async (req) => {
           const { data: insertData, error: usageError } = await supabaseAuth
             .from('api_usage')
             .insert({
-              user_id: user.id,
+              user_id: userId,
               function_name: 'process-receipt',
               model: 'gpt-4.1-2025-04-14',
               prompt_tokens: promptTokens,
@@ -251,7 +269,7 @@ serve(async (req) => {
             console.log('API usage data stored successfully:', insertData);
           }
         } else {
-          console.log('No user found in auth context');
+          console.log('Could not derive userId from JWT - skipping usage insert');
         }
       } catch (authError) {
         console.error('Error processing user authentication for usage tracking:', authError);
