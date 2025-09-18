@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Calendar, DollarSign, Zap, Receipt, Download } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
@@ -33,6 +34,9 @@ export const BillingUsage = () => {
   const [usageData, setUsageData] = useState<UsageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<"today" | "week" | "month" | "all">("month");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 20;
   const [summary, setSummary] = useState<UsageSummary>({
     totalTokens: 0,
     totalCost: 0,
@@ -43,9 +47,16 @@ export const BillingUsage = () => {
 
   useEffect(() => {
     if (user) {
+      setCurrentPage(1); // Reset to first page when period changes
       fetchUsageData();
     }
   }, [user, period]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUsageData();
+    }
+  }, [currentPage]);
 
   const getDateRange = () => {
     const now = new Date();
@@ -66,38 +77,62 @@ export const BillingUsage = () => {
 
     setLoading(true);
     try {
-      let query = supabase
+      let baseQuery = supabase
         .from("api_usage")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .select("*", { count: 'exact' })
+        .eq("user_id", user.id);
 
       const [startDate, endDate] = getDateRange();
       if (startDate && endDate) {
-        query = query
+        baseQuery = baseQuery
           .gte("created_at", startDate.toISOString())
           .lte("created_at", endDate.toISOString());
       }
 
-      const { data, error } = await query.limit(100);
+      // Get total count for pagination
+      const { count } = await baseQuery;
+      setTotalCount(count || 0);
+
+      // Get paginated data
+      const { data, error } = await baseQuery
+        .order("created_at", { ascending: false })
+        .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
 
       if (error) throw error;
 
       setUsageData(data || []);
 
-      // Calculate summary
-      const totalTokens = (data || []).reduce((sum, item) => sum + item.total_tokens, 0);
-      const totalCost = (data || []).reduce((sum, item) => sum + parseFloat(item.cost_usd.toString()), 0);
-      const promptTokens = (data || []).reduce((sum, item) => sum + item.prompt_tokens, 0);
-      const completionTokens = (data || []).reduce((sum, item) => sum + item.completion_tokens, 0);
+      // Calculate summary from all data (not just current page)
+      const { data: summaryData, error: summaryError } = await supabase
+        .from("api_usage")
+        .select("total_tokens, cost_usd, prompt_tokens, completion_tokens")
+        .eq("user_id", user.id)
+        .then(result => {
+          if (startDate && endDate && !result.error) {
+            return supabase
+              .from("api_usage")
+              .select("total_tokens, cost_usd, prompt_tokens, completion_tokens")
+              .eq("user_id", user.id)
+              .gte("created_at", startDate.toISOString())
+              .lte("created_at", endDate.toISOString());
+          }
+          return result;
+        });
 
-      setSummary({
-        totalTokens,
-        totalCost,
-        promptTokens,
-        completionTokens,
-        requestCount: (data || []).length
-      });
+      if (!summaryError && summaryData) {
+        const totalTokens = summaryData.reduce((sum, item) => sum + item.total_tokens, 0);
+        const totalCost = summaryData.reduce((sum, item) => sum + parseFloat(item.cost_usd.toString()), 0);
+        const promptTokens = summaryData.reduce((sum, item) => sum + item.prompt_tokens, 0);
+        const completionTokens = summaryData.reduce((sum, item) => sum + item.completion_tokens, 0);
+
+        setSummary({
+          totalTokens,
+          totalCost,
+          promptTokens,
+          completionTokens,
+          requestCount: summaryData.length
+        });
+      }
     } catch (error) {
       console.error("Error fetching usage data:", error);
     } finally {
@@ -253,6 +288,52 @@ export const BillingUsage = () => {
                   </div>
                 </div>
               ))}
+              
+              {/* Pagination */}
+              {totalCount > itemsPerPage && (
+                <div className="flex justify-center mt-6">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      
+                      {Array.from({ length: Math.ceil(totalCount / itemsPerPage) }, (_, i) => i + 1)
+                        .filter(page => {
+                          const totalPages = Math.ceil(totalCount / itemsPerPage);
+                          if (totalPages <= 7) return true;
+                          if (page === 1 || page === totalPages) return true;
+                          if (Math.abs(page - currentPage) <= 2) return true;
+                          return false;
+                        })
+                        .map((page, index, array) => (
+                          <PaginationItem key={page}>
+                            {index > 0 && array[index - 1] !== page - 1 && (
+                              <span className="px-2 text-muted-foreground">...</span>
+                            )}
+                            <PaginationLink
+                              onClick={() => setCurrentPage(page)}
+                              isActive={currentPage === page}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setCurrentPage(Math.min(Math.ceil(totalCount / itemsPerPage), currentPage + 1))}
+                          className={currentPage >= Math.ceil(totalCount / itemsPerPage) ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
