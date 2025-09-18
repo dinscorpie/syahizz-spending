@@ -201,6 +201,8 @@ serve(async (req) => {
 
     // Get authorization header to extract user info
     const authHeader = req.headers.get('authorization');
+    console.log('Authorization header present:', !!authHeader);
+    
     if (authHeader) {
       try {
         // Set up authenticated supabase client
@@ -213,11 +215,23 @@ serve(async (req) => {
         });
 
         // Get current user
-        const { data: { user } } = await supabaseAuth.auth.getUser();
+        const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+        console.log('User retrieval error:', userError);
+        console.log('User found:', !!user, user?.id);
         
         if (user) {
+          console.log('Attempting to insert usage data:', {
+            user_id: user.id,
+            function_name: 'process-receipt',
+            model: 'gpt-4.1-2025-04-14',
+            prompt_tokens: promptTokens,
+            completion_tokens: completionTokens,
+            total_tokens: totalTokens,
+            cost_usd: totalCost,
+          });
+
           // Store API usage data
-          const { error: usageError } = await supabaseAuth
+          const { data: insertData, error: usageError } = await supabaseAuth
             .from('api_usage')
             .insert({
               user_id: user.id,
@@ -227,17 +241,24 @@ serve(async (req) => {
               completion_tokens: completionTokens,
               total_tokens: totalTokens,
               cost_usd: totalCost,
-            });
+            })
+            .select();
 
           if (usageError) {
             console.error('Error storing API usage:', usageError);
+            console.error('Error details:', JSON.stringify(usageError));
           } else {
-            console.log('API usage data stored successfully');
+            console.log('API usage data stored successfully:', insertData);
           }
+        } else {
+          console.log('No user found in auth context');
         }
       } catch (authError) {
         console.error('Error processing user authentication for usage tracking:', authError);
+        console.error('Auth error details:', JSON.stringify(authError));
       }
+    } else {
+      console.log('No authorization header found - skipping usage tracking');
     }
 
     // Add usage data to response for debugging
