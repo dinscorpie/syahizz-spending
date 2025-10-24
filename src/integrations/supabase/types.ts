@@ -423,6 +423,12 @@ export type Database = {
           id: string
           name: string
         }
+        SetofOptions: {
+          from: "*"
+          to: "families"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_user_family_ids: {
         Args: { check_user_id: string }
