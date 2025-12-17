@@ -56,6 +56,30 @@ export type Database = {
         }
         Relationships: []
       }
+      candidates: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          intro: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          intro: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          intro?: string
+          name?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null
@@ -283,6 +307,33 @@ export type Database = {
         }
         Relationships: []
       }
+      questions: {
+        Row: {
+          code_image_url: string | null
+          created_at: string
+          id: string
+          question_number: number
+          question_text: string
+          question_type: string
+        }
+        Insert: {
+          code_image_url?: string | null
+          created_at?: string
+          id?: string
+          question_number: number
+          question_text: string
+          question_type?: string
+        }
+        Update: {
+          code_image_url?: string | null
+          created_at?: string
+          id?: string
+          question_number?: number
+          question_text?: string
+          question_type?: string
+        }
+        Relationships: []
+      }
       receipts: {
         Row: {
           added_by: string | null
@@ -342,6 +393,54 @@ export type Database = {
             columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_answers: {
+        Row: {
+          answer: string
+          candidate_id: string
+          created_at: string
+          id: string
+          question_id: string
+          started_at: string
+          submitted_at: string
+          time_taken_seconds: number
+        }
+        Insert: {
+          answer: string
+          candidate_id: string
+          created_at?: string
+          id?: string
+          question_id: string
+          started_at: string
+          submitted_at?: string
+          time_taken_seconds: number
+        }
+        Update: {
+          answer?: string
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          question_id?: string
+          started_at?: string
+          submitted_at?: string
+          time_taken_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_answers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
             referencedColumns: ["id"]
           },
         ]
@@ -414,6 +513,10 @@ export type Database = {
       accept_family_invitation: {
         Args: { invitation_id: string }
         Returns: boolean
+      }
+      create_candidate_and_return_id: {
+        Args: { p_email: string; p_intro: string; p_name: string }
+        Returns: string
       }
       create_family_with_admin: {
         Args: { family_name: string }
