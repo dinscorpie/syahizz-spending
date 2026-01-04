@@ -60,7 +60,9 @@ serve(async (req) => {
       cat.level === 1 ? cat.name : `${cat.name}`
     ).join(', ') || 'Food & Dining, Transportation, Shopping, Entertainment, Healthcare, Utilities, Housing, Personal Care, Education, Travel, Business, Other';
 
-    console.log('Processing receipt with OpenAI...');
+    // Get today's date in the edge function (server-side)
+    const today = new Date().toISOString().split('T')[0];
+    console.log('Processing receipt with OpenAI... Today\'s date:', today);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -91,6 +93,8 @@ serve(async (req) => {
             
             Available categories: ${categoryList}
             
+            Today's date is: ${today}
+            
             CRITICAL REQUIREMENTS:
             - You MUST extract ALL items from the receipt. The items array CANNOT be empty.
             - Every receipt has at least one item - find and extract ALL items listed.
@@ -99,7 +103,7 @@ serve(async (req) => {
             - You MUST assign a category to EVERY item. Choose the most appropriate category from the list above for each item. If an item doesn't fit any category well, use "Other". Never leave category field empty or null.
             - If you cannot clearly see individual items, extract what you can see or create reasonable line items based on the total amount.
             - The total_amount should be the final total including all taxes and charges
-            - Be precise with amounts and dates. If information is unclear, make reasonable assumptions.
+            - Be precise with amounts and dates. If the receipt date is not clearly visible or readable, use today's date (${today}).
             
             IMPORTANT: Return ONLY the JSON object. Do not include any explanations, markdown, or code fences.`
           },
